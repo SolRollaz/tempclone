@@ -65,4 +65,4 @@ class JWTManager {
     }
 }
 
-module.exports = JWTManager;
+export default JWTManager;
