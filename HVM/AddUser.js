@@ -64,4 +64,4 @@ class AddUser {
     }
 }
 
-module.exports = AddUser;
+export default AddUser;
