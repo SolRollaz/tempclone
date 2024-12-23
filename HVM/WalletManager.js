@@ -1,4 +1,6 @@
-import { wallet as dagWallet } from "@stardust-collective/dag4";
+import dag4 from "@stardust-collective/dag4";
+const { wallet: dagWallet } = dag4;
+
 import { ethers } from "ethers";
 console.log("Ethers Module:", ethers);
 import VaultHandler from "./VaultHandler.js";
