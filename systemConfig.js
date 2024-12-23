@@ -130,4 +130,4 @@ class SystemConfig {
     }
 }
 
-module.exports = SystemConfig;
+export default SystemConfig;
