@@ -91,4 +91,4 @@ class WalletInitializer {
   }
 }
 
-module.exports = WalletInitializer;
+export default WalletInitializer;
