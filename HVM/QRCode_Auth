@@ -4,7 +4,7 @@ const axios = require("axios");
 const qrCode = require("qrcode"); // QR code generation library
 const fs = require("fs");
 const path = require("path");
-const WalletManager = require("./wallet/WalletManager"); // Import WalletManager to generate internal wallets
+const WalletManager = require("./WalletManager"); // Import WalletManager to generate internal wallets
 
 class QR_Code_Auth {
     constructor() {
