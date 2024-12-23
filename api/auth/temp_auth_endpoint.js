@@ -1,7 +1,7 @@
 import express from "express";
 import bodyParser from "body-parser";
 import MasterAuth from "../../HVM/MasterAuth.js"; // Assuming MasterAuth is in this directory
-import QR_Code_Auth from "../../HVM/QRCode_Auth.js"; // Import QR Code Auth class
+import QRCode_Auth from "../../HVM/QRCode_Auth.js"; // Import QR Code Auth class
 import SystemConfig from "../../systemConfig.js"; // Centralized system configuration
 import { MongoClient } from "mongodb";
 
