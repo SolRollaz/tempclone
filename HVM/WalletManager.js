@@ -1,7 +1,7 @@
 const { wallet: dagWallet } = require("@stardust-collective/dag4");
 const ethers = require("ethers");
 const VaultHandler = require("./VaultHandler");
-const MongoClient = require("mongodb").MongoClient;
+const { MongoClient } = require("mongodb");
 const AddUser = require("./AddUser");
 const QRCodeManager = require("./QRCodeManager");
 const WalletInitializer = require("./WalletInitializer");
