@@ -58,12 +58,19 @@ class SystemConfig {
         console.log(`Network: ${key}, RPC URL: ${config.rpcUrl}`);
         if (!config.rpcUrl) {
             console.error(`RPC URL missing for network: ${key}`);
+            continue;
         }
-        console.log("Ethers Providers:", ethers.providers);
-        providers[key] = new JsonRpcProvider(config.rpcUrl);
+        try {
+            const provider = new JsonRpcProvider(config.rpcUrl); // Directly initialize JsonRpcProvider
+            providers[key] = provider;
+            console.log(`Provider for ${key} initialized:`, provider);
+        } catch (error) {
+            console.error(`Failed to initialize provider for ${key}:`, error.message);
+        }
     }
     return providers;
 }
+
 
 
     /**
