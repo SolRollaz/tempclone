@@ -149,4 +149,4 @@ class Send_Balances {
     }
 }
 
-module.exports = Send_Balances;
+export default Send_Balances;
