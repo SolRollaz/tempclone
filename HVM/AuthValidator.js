@@ -1,16 +1,15 @@
 import dag4 from "@stardust-collective/dag4";
-const { WalletClient } = dag4;
-
 import { ethers } from "ethers";
 import SystemConfig from "../systemConfig.js"; // Include `.js` extension for local files
 
-// Log Ethers module to verify import
-console.log("Ethers Module:", ethers);
+// Destructure wallet from dag4
+const { wallet: dagWallet } = dag4;
 
+console.log("Ethers Module:", ethers);
 
 class AuthValidator {
     constructor() {
-        this.walletClient = new WalletClient();
+        this.dagWallet = dagWallet; // Use DAG wallet directly
         this.systemConfig = new SystemConfig(); // Centralized network configuration
     }
 
@@ -21,7 +20,9 @@ class AuthValidator {
      */
     async authenticateWithDAG4(walletAddress) {
         try {
-            const isValid = await this.walletClient.validateAddress(walletAddress);
+            this.dagWallet.loginWithPrivateKey(""); // Initialize DAG wallet (empty for validation only)
+            const isValid = this.dagWallet.validateAddress(walletAddress);
+            console.log("DAG Wallet validation result:", isValid);
             return isValid;
         } catch (error) {
             console.error("Error during DAG4 authentication:", error.message);
@@ -38,7 +39,8 @@ class AuthValidator {
      */
     async authenticateWithMetamask(message, signature, walletAddress) {
         try {
-            const signerAddress = ethers.utils.verifyMessage(message, signature);
+            const signerAddress = ethers.verifyMessage(message, signature);
+            console.log("Metamask signer address:", signerAddress);
             return signerAddress.toLowerCase() === walletAddress.toLowerCase();
         } catch (error) {
             console.error("Error during Metamask authentication:", error.message);
