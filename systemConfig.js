@@ -1,4 +1,5 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config(); // Load environment variables
 console.log("ENV VARIABLES LOADED:", process.env.RPC_URL_ETHEREUM);
 import { ethers } from 'ethers';
 console.log("Ethers module loaded:", ethers);
