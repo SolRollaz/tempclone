@@ -141,4 +141,5 @@ class AuthEndpoint {
     }
 }
 
-module.exports = AuthEndpoint;
+export default AuthEndpoint;
+
