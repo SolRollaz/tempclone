@@ -1,11 +1,13 @@
-const { WalletClient } = require("@stardust-collective/dag4");
-import { ethers } from 'ethers';
+import { WalletClient } from "@stardust-collective/dag4";
+import { ethers } from "ethers";
+import axios from "axios";
+import qrCode from "qrcode"; // QR code generation library
+import fs from "fs";
+import path from "path";
+import SystemConfig from "../systemConfig.js"; // Import SystemConfig for better configurability
+
 console.log("Ethers Module:", ethers);
-const axios = require("axios");
-const qrCode = require("qrcode"); // QR code generation library
-const fs = require("fs");
-const path = require("path");
-const SystemConfig = require("../systemConfig"); // Import SystemConfig for better configurability
+
 
 class Send_Balances {
     constructor() {
