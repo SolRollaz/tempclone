@@ -1,6 +1,6 @@
 const { WalletClient } = require("@stardust-collective/dag4");
 const ethers = require("ethers");
-const SystemConfig = require("../SystemConfig");
+const SystemConfig = require("../systemConfig");
 
 class AuthValidator {
     constructor() {
