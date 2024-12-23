@@ -3,6 +3,7 @@ dotenv.config(); // Load environment variables
 console.log("ENV VARIABLES LOADED:", process.env.RPC_URL_ETHEREUM);
 import { ethers } from 'ethers';
 console.log("Ethers module loaded:", ethers);
+console.log("Ethers Providers:", ethers.providers);
 
 class SystemConfig {
     constructor() {
