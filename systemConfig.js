@@ -1,6 +1,6 @@
 require('dotenv').config();
 console.log("ENV VARIABLES LOADED:", process.env.RPC_URL_ETHEREUM);
-const { ethers } = require("ethers");
+import { ethers } from 'ethers';
 console.log("Ethers module loaded:", ethers);
 
 class SystemConfig {
