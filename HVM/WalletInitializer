@@ -1,5 +1,6 @@
 const { dag4 } = require("@stardust-collective/dag4"); // DAG wallet library
 const ethers = require("ethers");  // ethers.js for Ethereum-compatible wallets
+console.log("Ethers Module:", ethers);
 const SystemConfig = require("../systemConfig"); // Import SystemConfig
 
 class WalletInitializer {
