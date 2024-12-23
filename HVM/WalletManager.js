@@ -180,4 +180,4 @@ class WalletManager {
   }
 }
 
-module.exports = WalletManager;
+export default WalletManager;
