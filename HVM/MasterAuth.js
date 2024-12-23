@@ -1,10 +1,10 @@
-const AuthValidator = require('./AuthValidator');
-const WalletManager = require('./WalletManager');
-const QRCodeManager = require('./QRCodeManager');
-const { MongoClient } = require("mongodb");
-const JWTManager = require('./JWTManager');
-const Send_Balances = require('./Send_Balances');
-const SystemConfig = require('../systemConfig'); // Import SystemConfig
+import AuthValidator from './AuthValidator.js';
+import WalletManager from './WalletManager.js';
+import QRCodeManager from './QRCodeManager.js';
+import { MongoClient } from 'mongodb'; // MongoDB import remains the same
+import JWTManager from './JWTManager.js';
+import Send_Balances from './Send_Balances.js';
+import SystemConfig from '../systemConfig.js'; // Include .js extension
 
 class MasterAuth {
     constructor() {
