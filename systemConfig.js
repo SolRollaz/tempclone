@@ -56,6 +56,7 @@ class SystemConfig {
         if (!config.rpcUrl) {
             console.error(`RPC URL missing for network: ${key}`);
         }
+        console.log("Ethers Providers:", ethers.providers);
         providers[key] = new ethers.providers.JsonRpcProvider(config.rpcUrl);
     }
     return providers;
