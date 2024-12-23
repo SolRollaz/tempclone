@@ -1,11 +1,12 @@
-const { wallet: dagWallet } = require("@stardust-collective/dag4");
-import { ethers } from 'ethers';
+import { wallet as dagWallet } from "@stardust-collective/dag4";
+import { ethers } from "ethers";
 console.log("Ethers Module:", ethers);
-const VaultHandler = require("./VaultHandler");
-const { MongoClient } = require("mongodb");
-const AddUser = require("./AddUser");
-const QRCodeManager = require("./QRCodeManager");
-const WalletInitializer = require("./WalletInitializer");
+import VaultHandler from "./VaultHandler.js";
+import { MongoClient } from "mongodb";
+import AddUser from "./AddUser.js";
+import QRCodeManager from "./QRCodeManager.js";
+import WalletInitializer from "./WalletInitializer.js";
+
 
 class WalletManager {
   constructor(systemConfig) {
