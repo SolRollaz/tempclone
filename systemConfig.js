@@ -1,5 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config(); // Load environment variables
+console.log("Loaded Environment Variables:", {
+    RPC_URL_ETHEREUM: process.env.RPC_URL_ETHEREUM,
+    RPC_URL_BNB: process.env.RPC_URL_BNB,
+    RPC_URL_AVAX: process.env.RPC_URL_AVAX,
+    RPC_URL_BASE: process.env.RPC_URL_BASE,
+    RPC_URL_DAG: process.env.RPC_URL_DAG,
+});
 
 import { JsonRpcProvider } from 'ethers'; // Import only JsonRpcProvider
 console.log("Testing JsonRpcProvider import:", JsonRpcProvider);
