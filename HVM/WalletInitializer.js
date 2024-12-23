@@ -1,4 +1,4 @@
-import { dag4 } from "@stardust-collective/dag4"; // DAG wallet library
+import dag4 from "@stardust-collective/dag4";
 import { ethers } from "ethers";
 import SystemConfig from "../systemConfig.js"; // Import SystemConfig
 
