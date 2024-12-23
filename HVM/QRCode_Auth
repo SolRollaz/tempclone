@@ -141,4 +141,4 @@ class QR_Code_Auth {
     }
 }
 
-module.exports = QR_Code_Auth;
+export default QR_Code_Auth;
