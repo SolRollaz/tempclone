@@ -1,6 +1,7 @@
-const qrCode = require("qrcode");
-const fs = require("fs");
-const path = require("path");
+import qrCode from "qrcode";
+import fs from "fs";
+import path from "path";
+
 
 class QRCodeManager {
     constructor() {
