@@ -88,4 +88,4 @@ class QRCodeManager {
     }
 }
 
-module.exports = QRCodeManager;
+export default QRCodeManager;
