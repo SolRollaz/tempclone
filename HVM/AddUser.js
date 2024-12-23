@@ -1,5 +1,6 @@
-const mongoose = require("mongoose");
-const User = require("../Schema/userSchema"); // Import User schema
+import mongoose from "mongoose";
+import User from "../Schema/userSchema.js"; // Include the `.js` extension for the schema
+
 
 class AddUser {
     constructor(systemConfig) {
