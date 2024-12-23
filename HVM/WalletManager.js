@@ -1,10 +1,10 @@
 const { wallet: dagWallet } = require("dag4");
 const ethers = require("ethers");
-const VaultHandler = require("./HVM/VaultHandler");
+const VaultHandler = require("./VaultHandler");
 const MongoClient = require("mongodb").MongoClient;
-const AddUser = require("./HVM/AddUser");
-const QRCodeManager = require("./HVM/QRCodeManager");
-const WalletInitializer = require("./HVM/WalletInitializer");
+const AddUser = require("./AddUser");
+const QRCodeManager = require("./QRCodeManager");
+const WalletInitializer = require("./WalletInitializer");
 
 class WalletManager {
   constructor(systemConfig) {
