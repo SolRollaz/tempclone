@@ -1,7 +1,10 @@
-const { WalletClient } = require("@stardust-collective/dag4");
-import { ethers } from 'ethers';
+import { WalletClient } from "@stardust-collective/dag4";
+import { ethers } from "ethers";
+import SystemConfig from "../systemConfig.js"; // Include `.js` extension for local files
+
+// Log Ethers module to verify import
 console.log("Ethers Module:", ethers);
-const SystemConfig = require("../systemConfig");
+
 
 class AuthValidator {
     constructor() {
