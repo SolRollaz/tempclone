@@ -1,5 +1,6 @@
 const { WalletClient } = require("@stardust-collective/dag4");
 const ethers = require("ethers");  // ethers.js for signing Metamask messages
+console.log("Ethers Module:", ethers);
 const axios = require("axios");
 const qrCode = require("qrcode"); // QR code generation library
 const fs = require("fs");
