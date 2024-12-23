@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const SystemConfig = require("../SystemConfig");
+const SystemConfig = require("../systemConfig");
 
 class JWTManager {
     constructor(mongoClient, dbName) {
