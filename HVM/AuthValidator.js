@@ -1,4 +1,4 @@
-const { WalletClient } = require("dag4");
+const { WalletClient } = require("@stardust-collective/dag4");
 const ethers = require("ethers");
 const SystemConfig = require("../SystemConfig");
 
