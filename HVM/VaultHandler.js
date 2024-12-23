@@ -40,4 +40,4 @@ class VaultHandler {
     }
 }
 
-module.exports = VaultHandler;
+export default VaultHandler;
