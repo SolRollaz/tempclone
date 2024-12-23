@@ -1,5 +1,5 @@
 // Import the AuthEndpoint class
-const AuthEndpoint = require("./api/AuthEndpoint");
+const AuthEndpoint = require("./api/auth/temp_auth_endpoint");
 
 // Create an instance of the AuthEndpoint class
 const authAPI = new AuthEndpoint();
