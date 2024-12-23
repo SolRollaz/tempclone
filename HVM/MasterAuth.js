@@ -1,9 +1,9 @@
 const AuthValidator = require('./AuthValidator');
 const WalletManager = require('./WalletManager');
-const QRCodeManager = require('./HVM/QRCodeManager');
-const MongoDBClient = require('./HVM/MongoDBClient');
-const JWTManager = require('./HVM/JWTManager');
-const Send_Balances = require('./HVM/Send_Balances');
+const QRCodeManager = require('./QRCodeManager');
+const MongoDBClient = require('../MongoDBClient');
+const JWTManager = require('./JWTManager');
+const Send_Balances = require('./Send_Balances');
 const SystemConfig = require('../systemConfig'); // Import SystemConfig
 
 class MasterAuth {
