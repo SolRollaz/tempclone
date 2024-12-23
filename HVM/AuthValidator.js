@@ -83,4 +83,4 @@ class AuthValidator {
     }
 }
 
-module.exports = AuthValidator;
+export default AuthValidator;
