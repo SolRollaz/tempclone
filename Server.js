@@ -1,22 +1,27 @@
-require('dotenv').config(); // Load environment variables
-const express = require('express');
-const { MongoClient } = require('mongodb');
-const bodyParser = require('body-parser');
-const cors = require('cors'); // For handling cross-origin requests
-const helmet = require('helmet'); // For securing HTTP headers
+import dotenv from 'dotenv'; // Load environment variables
+import express from 'express'; // Import Express
+import { MongoClient } from 'mongodb'; // MongoDB client
+import bodyParser from 'body-parser'; // Parse request bodies
+import cors from 'cors'; // Handle cross-origin requests
+import helmet from 'helmet'; // Secure HTTP headers
+
+// Load environment variables from .env
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Define the port the server runs on
-
-// Middleware
-app.use(bodyParser.json()); // Parse JSON request bodies
-app.use(cors()); // Enable CORS
-app.use(helmet()); // Secure HTTP headers
+const PORT = process.env.PORT || 3000; // Server port
 
 // MongoDB Configuration
 const mongoUri = process.env.MONGO_URI; // Ensure this is set in your .env
-const dbName = process.env.MONGO_DB_NAME || 'hyprmtrx'; // Default DB name
+const dbName = process.env.MONGO_DB_NAME || 'hyprmtrx'; // Default database name
 let db; // Global variable to hold the MongoDB connection
+
+/**
+ * Middleware Setup
+ */
+app.use(bodyParser.json()); // Parse JSON request bodies
+app.use(cors()); // Enable CORS
+app.use(helmet()); // Secure HTTP headers
 
 /**
  * Connect to MongoDB.
@@ -25,7 +30,7 @@ async function connectToMongoDB() {
     try {
         const client = new MongoClient(mongoUri, {
             useNewUrlParser: true,
-            useUnifiedTopology: true
+            useUnifiedTopology: true,
         });
         await client.connect();
         console.log('Connected to MongoDB');
@@ -50,6 +55,9 @@ app.get('/', (req, res) => {
  */
 app.get('/users', async (req, res) => {
     try {
+        if (!db) {
+            return res.status(500).json({ error: 'Database connection not established.' });
+        }
         const usersCollection = db.collection('users');
         const users = await usersCollection.find({}).toArray();
         res.json(users);
