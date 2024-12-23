@@ -1,5 +1,6 @@
-const jwt = require("jsonwebtoken");
-const SystemConfig = require("../systemConfig");
+import jwt from "jsonwebtoken";
+import SystemConfig from "../systemConfig.js"; // `.js` is mandatory for local imports
+
 
 class JWTManager {
     constructor(mongoClient, dbName) {
