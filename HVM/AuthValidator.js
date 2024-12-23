@@ -1,6 +1,6 @@
 const { WalletClient } = require("dag4");
 const ethers = require("ethers");
-const SystemConfig = require("./SystemConfig");
+const SystemConfig = require("../SystemConfig");
 
 class AuthValidator {
     constructor() {
