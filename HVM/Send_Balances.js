@@ -4,7 +4,7 @@ const axios = require("axios");
 const qrCode = require("qrcode"); // QR code generation library
 const fs = require("fs");
 const path = require("path");
-const SystemConfig = require("../SystemConfig"); // Import SystemConfig for better configurability
+const SystemConfig = require("../systemConfig"); // Import SystemConfig for better configurability
 
 class Send_Balances {
     constructor() {
