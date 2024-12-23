@@ -1,9 +1,10 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const MasterAuth = require("../../HVM/MasterAuth"); // Assuming MasterAuth is in the same directory
-const QR_Code_Auth = require("../../HVM/QRCode_Auth"); // Import QR Code Auth class
-const SystemConfig = require("../../systemConfig"); // Centralized system configuration
-const { MongoClient } = require("mongodb");
+import express from "express";
+import bodyParser from "body-parser";
+import MasterAuth from "../../HVM/MasterAuth.js"; // Assuming MasterAuth is in this directory
+import QR_Code_Auth from "../../HVM/QRCode_Auth.js"; // Import QR Code Auth class
+import SystemConfig from "../../systemConfig.js"; // Centralized system configuration
+import { MongoClient } from "mongodb";
+
 
 class AuthEndpoint {
     constructor() {
