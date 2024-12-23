@@ -113,4 +113,4 @@ class MasterAuth {
     }
 }
 
-module.exports = MasterAuth;
+export default MasterAuth;
