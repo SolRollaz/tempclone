@@ -48,12 +48,17 @@ class SystemConfig {
      * @returns {Object} - Providers keyed by network.
      */
     initializeProviders() {
-        const providers = {};
-        for (const [key, config] of Object.entries(this.networks)) {
-            providers[key] = new ethers.providers.JsonRpcProvider(config.rpcUrl);
+    const providers = {};
+    for (const [key, config] of Object.entries(this.networks)) {
+        console.log(`Network: ${key}, RPC URL: ${config.rpcUrl}`);
+        if (!config.rpcUrl) {
+            console.error(`RPC URL missing for network: ${key}`);
         }
-        return providers;
+        providers[key] = new ethers.providers.JsonRpcProvider(config.rpcUrl);
     }
+    return providers;
+}
+
 
     /**
      * Get configuration for a specific network.
