@@ -1,11 +1,25 @@
 // Import the AuthEndpoint class
-const AuthEndpoint = require("./api/auth/temp_auth_endpoint");
+const AuthEndpoint = require("./temp_auth_endpoint");
+const express = require('express');
+
+// Create an Express app
+const app = express();
+
+// Middleware to parse JSON requests
+app.use(express.json());
 
 // Create an instance of the AuthEndpoint class
 const authAPI = new AuthEndpoint();
+
+// Define the API route
+app.post('/hpmx_sandbox/Authentication', (req, res) => {
+    authAPI.handleRequest(req, res); // Delegate to the AuthEndpoint handler
+});
 
 // Define the port for the API
 const PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
 
 // Start the server
-authAPI.startServer(PORT);
+app.listen(PORT, () => {
+    console.log(`Authentication API running at http://localhost:${PORT}/hpmx_sandbox/Authentication`);
+});
