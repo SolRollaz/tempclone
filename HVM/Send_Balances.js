@@ -1,4 +1,6 @@
-import { WalletClient } from "@stardust-collective/dag4";
+import dag4 from "@stardust-collective/dag4";
+const { WalletClient } = dag4;
+
 import { ethers } from "ethers";
 import axios from "axios";
 import qrCode from "qrcode"; // QR code generation library
