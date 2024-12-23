@@ -1,7 +1,7 @@
 const AuthValidator = require('./AuthValidator');
 const WalletManager = require('./WalletManager');
 const QRCodeManager = require('./QRCodeManager');
-const MongoDBClient = require('../MongoDBClient');
+const { MongoClient } = require("mongodb");
 const JWTManager = require('./JWTManager');
 const Send_Balances = require('./Send_Balances');
 const SystemConfig = require('../systemConfig'); // Import SystemConfig
