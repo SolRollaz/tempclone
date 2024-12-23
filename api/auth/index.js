@@ -12,7 +12,7 @@ app.use(express.json());
 const authAPI = new AuthEndpoint();
 
 // Define the API route
-app.post('/hpmx_sandbox/Authentication', (req, res) => {
+app.post('/api/auth', (req, res) => {
     authAPI.handleRequest(req, res); // Delegate to the AuthEndpoint handler
 });
 
