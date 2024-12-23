@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { ethers } = require("ethers");
+console.log("Ethers module loaded:", ethers);
 
 class SystemConfig {
     constructor() {
