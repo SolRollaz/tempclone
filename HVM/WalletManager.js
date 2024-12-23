@@ -1,4 +1,4 @@
-const { wallet: dagWallet } = require("dag4");
+const { wallet: dagWallet } = require("@stardust-collective/dag4");
 const ethers = require("ethers");
 const VaultHandler = require("./VaultHandler");
 const MongoClient = require("mongodb").MongoClient;
