@@ -4,7 +4,7 @@ const QRCodeManager = require('./HVM/QRCodeManager');
 const MongoDBClient = require('./HVM/MongoDBClient');
 const JWTManager = require('./HVM/JWTManager');
 const Send_Balances = require('./HVM/Send_Balances');
-const SystemConfig = require('../SystemConfig'); // Import SystemConfig
+const SystemConfig = require('../systemConfig'); // Import SystemConfig
 
 class MasterAuth {
     constructor() {
