@@ -1,10 +1,10 @@
-const AuthValidator = require('./HVM/AuthValidator');
-const WalletManager = require('./HVM/WalletManager');
+const AuthValidator = require('./AuthValidator');
+const WalletManager = require('./WalletManager');
 const QRCodeManager = require('./HVM/QRCodeManager');
 const MongoDBClient = require('./HVM/MongoDBClient');
 const JWTManager = require('./HVM/JWTManager');
 const Send_Balances = require('./HVM/Send_Balances');
-const SystemConfig = require('./SystemConfig'); // Import SystemConfig
+const SystemConfig = require('../SystemConfig'); // Import SystemConfig
 
 class MasterAuth {
     constructor() {
