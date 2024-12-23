@@ -1,4 +1,5 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
+
 
 class VaultHandler {
     constructor() {
