@@ -1,5 +1,5 @@
 // Import the AuthEndpoint class
-const AuthEndpoint = require("./temp_auth_endpoint");
+import AuthEndpoint from './temp_auth_endpoint.js'; // Include `.js` extension in ES modules
 const express = require('express');
 
 // Create an Express app
