@@ -1,5 +1,5 @@
 const { wallet: dagWallet } = require("@stardust-collective/dag4");
-const ethers = require("ethers");
+import { ethers } from 'ethers';
 console.log("Ethers Module:", ethers);
 const VaultHandler = require("./VaultHandler");
 const { MongoClient } = require("mongodb");
