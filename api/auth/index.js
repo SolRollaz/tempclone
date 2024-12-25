@@ -1,3 +1,6 @@
+// Load environment variables from the .env file
+import 'dotenv/config'; // ES6 way to load dotenv (use 'dotenv/config' instead of require)
+
 // Import the AuthEndpoint class
 import AuthEndpoint from './temp_auth_endpoint.js'; // Include `.js` extension in ES modules
 import express from 'express'; // Use `import` for consistency in ES modules
