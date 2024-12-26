@@ -1,21 +1,32 @@
 import { JsonRpcProvider } from "ethers";
-import 'dotenv/config'; // Load environment variables
+import 'dotenv/config'; // Load .env configuration
 
-// Debug: Log loaded environment variables
+// Debug: Log environment variables for clarity
 console.log("Loaded Environment Variables:", {
+    MONGO_URI: process.env.MONGO_URI,
+    MONGO_DB_NAME: process.env.MONGO_DB_NAME,
     RPC_URL_ETHEREUM: process.env.RPC_URL_ETHEREUM,
     RPC_URL_BNB: process.env.RPC_URL_BNB,
     RPC_URL_AVAX: process.env.RPC_URL_AVAX,
     RPC_URL_BASE: process.env.RPC_URL_BASE,
     RPC_URL_DAG: process.env.RPC_URL_DAG,
-    MONGO_URI: process.env.MONGO_URI,
-    MONGO_DB_NAME: process.env.MONGO_DB_NAME,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
 });
 
 class SystemConfig {
     constructor() {
-        // Supported blockchain networks (with defaults for missing env variables)
+        // MongoDB configuration based on DigitalOcean details
+        this.mongoConfig = {
+            uri: process.env.MONGO_URI || "mongodb+srv://doadmin:60n7Am9V8RB1Q34Y@private-db-mongodb-nyc1-68998-a603f74a.mongo.ondigitalocean.com/admin?retryWrites=true&w=majority",
+            dbName: process.env.MONGO_DB_NAME || "admin",
+        };
+
+        // Validate Mongo URI
+        if (!this.mongoConfig.uri.startsWith("mongodb")) {
+            throw new Error(`Invalid MongoDB URI: ${this.mongoConfig.uri}`);
+        }
+
+        // Supported blockchain networks
         this.networks = {
             ETH: {
                 name: "Ethereum",
@@ -43,22 +54,6 @@ class SystemConfig {
                 feeWallet: process.env.FEE_WALLET_DAG || "DAG5JL23TzANyohk1enp6VgdBoEBeYFNPpGQiSK2",
             },
         };
-
-        // MongoDB configuration from environment
-        this.mongoConfig = {
-            uri: process.env.MONGO_URI || "mongodb://localhost:27017/admin", // Default Mongo URI
-            dbName: process.env.MONGO_DB_NAME || "admin", // Default DB name
-        };
-
-        // Validate Mongo URI
-        if (!this.mongoConfig.uri.startsWith("mongodb")) {
-            throw new Error(`Invalid MongoDB URI: ${this.mongoConfig.uri}`);
-        }
-
-        // Validate Encryption Key
-        if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length !== 64) {
-            console.warn("ENCRYPTION_KEY is missing or invalid (not 64 characters). This may cause errors.");
-        }
 
         // Initialize blockchain providers
         this.providers = this.initializeProviders();
@@ -104,7 +99,6 @@ class SystemConfig {
      * @returns {Object} - Network configuration.
      */
     getNetworkConfig(network) {
-        console.log(`Fetching configuration for network: ${network}`);
         if (!this.networks[network]) {
             throw new Error(`Unsupported network: ${network}`);
         }
@@ -130,13 +124,12 @@ class SystemConfig {
      * @returns {string} - Fee wallet address.
      */
     getFeeWallet(network) {
-        const config = this.getNetworkConfig(network);
-        return config.feeWallet;
+        return this.getNetworkConfig(network).feeWallet;
     }
 
     /**
      * Get the list of all supported networks.
-     * @returns {Array} - Array of network keys (e.g., ['ETH', 'BNB']).
+     * @returns {Array<string>} - Array of network keys (e.g., ['ETH', 'BNB']).
      */
     getSupportedNetworks() {
         return Object.keys(this.networks);
@@ -145,7 +138,7 @@ class SystemConfig {
     /**
      * Validate if a network is supported.
      * @param {string} network - The network key to validate.
-     * @returns {boolean} - True if the network is supported.
+     * @returns {boolean} - True if the network is supported, false otherwise.
      */
     isNetworkSupported(network) {
         return this.networks.hasOwnProperty(network);
