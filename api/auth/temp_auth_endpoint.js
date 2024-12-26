@@ -7,15 +7,29 @@ import { MongoClient } from "mongodb";
 
 class AuthEndpoint {
     constructor() {
+        // Initialize Express app
         this.app = express();
         this.app.use(bodyParser.json());
-        this.masterAuth = new MasterAuth(); // Instance of MasterAuth class
-        this.qrCodeAuth = new QR_Code_Auth(); // Instance of QR_Code_Auth class
-        this.systemConfig = new SystemConfig(); // Centralized configuration class
+
+        // Initialize dependencies
+        this.masterAuth = new MasterAuth();
+        this.qrCodeAuth = new QR_Code_Auth();
+        this.systemConfig = new SystemConfig();
 
         // MongoDB Configuration
-        this.mongoUri = this.systemConfig.getMongoUri() || process.env.MONGO_URI; // Fallback to environment variable
-        this.dbName = this.systemConfig.getMongoDbName();
+        this.mongoUri = process.env.MONGO_URI || this.systemConfig.getMongoUri();
+        if (!this.mongoUri) {
+            throw new Error("Mongo URI is not defined. Please check your environment variables or SystemConfig.");
+        }
+
+        console.log("Mongo URI being used:", this.mongoUri);
+
+        // Validate Mongo URI format
+        if (!this.mongoUri.startsWith("mongodb")) {
+            throw new Error("Invalid MongoDB URI format: " + this.mongoUri);
+        }
+
+        this.dbName = process.env.MONGO_DB_NAME || this.systemConfig.getMongoDbName();
         this.client = new MongoClient(this.mongoUri, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
@@ -28,16 +42,12 @@ class AuthEndpoint {
     setupRoutes() {
         this.app.post("/:game_name/auth", async (req, res) => {
             const { user_name, auth_type, user_data, qr_code } = req.body;
-            const { game_name } = req.params; // Extract game_name from URL path
+            const { game_name } = req.params;
 
             // Handle QR code authentication
             if (qr_code) {
                 try {
-                    const authResult = await this.qrCodeAuth.processQRCodeAuth(
-                        game_name,
-                        user_data,
-                        auth_type
-                    );
+                    const authResult = await this.qrCodeAuth.processQRCodeAuth(game_name, user_data, auth_type);
                     return res.json(authResult);
                 } catch (error) {
                     console.error("Error during QR Code authentication:", error.message);
@@ -48,7 +58,6 @@ class AuthEndpoint {
                 }
             }
 
-            // Generate a temporary username if not provided
             const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
 
             // Validate required fields
@@ -60,7 +69,7 @@ class AuthEndpoint {
             }
 
             try {
-                // Check if the wallet address already exists for any network
+                // Check if the wallet address already exists
                 const walletExists = await this.checkIfWalletExists(user_data);
                 if (walletExists) {
                     return res.status(400).json({
@@ -70,12 +79,7 @@ class AuthEndpoint {
                 }
 
                 // Proceed with wallet authentication using MasterAuth
-                const authResult = await this.masterAuth.processAuthRequest(
-                    username,
-                    game_name,
-                    auth_type,
-                    user_data
-                );
+                const authResult = await this.masterAuth.processAuthRequest(username, game_name, auth_type, user_data);
 
                 if (authResult.status === "success") {
                     return res.json({
@@ -105,11 +109,10 @@ class AuthEndpoint {
     async checkIfWalletExists(user_data) {
         try {
             await this.connectToDB();
-            const { DAG, AVAX, BNB, ETH } = user_data; // Wallet addresses
+            const { DAG, AVAX, BNB, ETH } = user_data;
             const db = this.client.db(this.dbName);
             const usersCollection = db.collection("users");
 
-            // Query to check if any wallet address already exists
             const existingUser = await usersCollection.findOne({
                 $or: [
                     { "auth_wallets.DAG": DAG },
