@@ -1,5 +1,7 @@
 // Load environment variables from the .env file
 import 'dotenv/config'; // ES6 way to load dotenv (use 'dotenv/config' instead of require)
+console.log("Loaded Mongo URI:", process.env.MONGO_URI);
+
 
 // Import the AuthEndpoint class
 import AuthEndpoint from './temp_auth_endpoint.js'; // Include `.js` extension in ES modules
