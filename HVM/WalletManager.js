@@ -8,6 +8,7 @@ import { MongoClient } from "mongodb";
 import AddUser from "./AddUser.js";
 import QRCodeManager from "./QRCodeManager.js";
 import WalletInitializer from "./WalletInitializer.js";
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
 
 
 class WalletManager {
