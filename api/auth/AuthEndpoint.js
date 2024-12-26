@@ -43,8 +43,15 @@ class AuthEndpoint {
 
         // Handle QR code generation and response
         if (qr_code === "qr_code") {
+            if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
+                return res.status(400).json({
+                    status: "failure",
+                    message: "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.",
+                });
+            }
+
             try {
-                const qrCodeResult = await this.qrCodeAuth.generateQRCode("default_game");
+                const qrCodeResult = await this.qrCodeAuth.generateQRCode("default_game", auth_type);
 
                 // Read the generated QR code file
                 const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
