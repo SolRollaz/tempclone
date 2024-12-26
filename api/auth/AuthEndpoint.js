@@ -38,6 +38,7 @@ class AuthEndpoint {
      */
     async handleRequest(req, res) {
         const { user_name, auth_type, user_data, qr_code } = req.body;
+        console.log("Raw request body received:", JSON.stringify(req.body, null, 2));
 
         console.log("Incoming request body:", req.body);
 
