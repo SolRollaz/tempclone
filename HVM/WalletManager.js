@@ -2,185 +2,122 @@ import dag4 from "@stardust-collective/dag4";
 const { wallet: dagWallet } = dag4;
 
 import { ethers } from "ethers";
-console.log("Ethers Module:", ethers);
 import VaultHandler from "./VaultHandler.js";
 import { MongoClient } from "mongodb";
 import AddUser from "./AddUser.js";
 import QRCodeManager from "./QRCodeManager.js";
 import WalletInitializer from "./WalletInitializer.js";
-const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
-
 
 class WalletManager {
-  constructor(systemConfig) {
-    this.dbClient = new MongoClient(systemConfig.mongoUrl, { useUnifiedTopology: true });
-    this.dbName = systemConfig.dbName;
-    this.privateKeyCollection = "private_keys";
-    this.vaultHandler = new VaultHandler();
-    this.addUser = new AddUser(systemConfig);
-    this.qrCodeManager = new QRCodeManager();
-    this.systemConfig = systemConfig;
-    this.dbClient.connect(); // Connect to the database during initialization
-  }
+    constructor(systemConfig) {
+        this.dbClient = new MongoClient(systemConfig.mongoUrl, { useUnifiedTopology: true });
+        this.dbName = systemConfig.dbName;
+        this.privateKeyCollection = "private_keys";
+        this.vaultHandler = new VaultHandler();
+        this.addUser = new AddUser(systemConfig);
+        this.qrCodeManager = new QRCodeManager();
+        this.systemConfig = systemConfig;
 
-  // Close MongoDB connection when done
-  async close() {
-    await this.dbClient.close();
-  }
-
-  // Store encrypted private keys in the database
-  async storePrivateKeys(userName, generatedWallets) {
-    try {
-      const db = this.dbClient.db(this.dbName);
-
-      // Encrypt private keys using VaultHandler
-      const encryptedWallets = generatedWallets.map(wallet => ({
-        network: wallet.network,
-        address: wallet.address,
-        encryptedPrivateKey: this.vaultHandler.encrypt(wallet.private_key),
-      }));
-
-      // Insert/update encrypted private keys in the database
-      await db.collection(this.privateKeyCollection).updateOne(
-        { userName },
-        { $set: { wallets: encryptedWallets } },
-        { upsert: true }
-      );
-    } catch (error) {
-      console.error("Error storing encrypted private keys:", error.message);
-      throw new Error("Failed to store private keys.");
-    }
-  }
-
-  // Retrieve decrypted private keys (use only when necessary)
-  async getDecryptedPrivateKeys(userName) {
-    try {
-      const db = this.dbClient.db(this.dbName);
-
-      // Find the user's document in the database
-      const userDocument = await db.collection(this.privateKeyCollection).findOne({ userName });
-
-      if (!userDocument || !userDocument.wallets) {
-        throw new Error("No private keys found for this user.");
-      }
-
-      // Decrypt the private keys using VaultHandler
-      const decryptedWallets = userDocument.wallets.map(wallet => ({
-        network: wallet.network,
-        address: wallet.address,
-        private_key: this.vaultHandler.decrypt(wallet.encryptedPrivateKey),
-      }));
-
-      return decryptedWallets;
-    } catch (error) {
-      console.error("Error retrieving decrypted private keys:", error.message);
-      throw new Error("Failed to retrieve private keys.");
-    }
-  }
-
-  // Generate wallets for multiple networks (Base, DAG, ETH, BNB, AVAX)
-  async generateWalletsForNetworks(user_name, wallet_address, networks = ["Base", "DAG", "ETH", "BNB", "AVAX"]) {
-    const generatedWallets = [];
-
-    for (let network of networks) {
-      switch (network) {
-        case "Base":
-          generatedWallets.push({
-            network,
-            address: await this.generateBaseWallet(),
-            private_key: await this.generateBasePrivateKey(),
-          });
-          break;
-        case "DAG":
-          generatedWallets.push({
-            network,
-            address: await this.generateDAGWallet(),
-            private_key: await this.generateDAGPrivateKey(),
-          });
-          break;
-        case "ETH":
-          generatedWallets.push({
-            network,
-            address: ethers.Wallet.createRandom().address,
-            private_key: ethers.Wallet.createRandom().privateKey,
-          });
-          break;
-        case "BNB":
-          generatedWallets.push({
-            network,
-            address: await this.generateBNBWallet(),
-            private_key: await this.generateBNBPrivateKey(),
-          });
-          break;
-        case "AVAX":
-          generatedWallets.push({
-            network,
-            address: await this.generateAvaxWallet(),
-            private_key: await this.generateAvaxPrivateKey(),
-          });
-          break;
-        default:
-          console.warn(`Unsupported network: ${network}`);
-      }
+        // Connect to the database
+        this.dbClient.connect().catch((error) => {
+            console.error("Error connecting to MongoDB:", error.message);
+            throw new Error("Failed to connect to MongoDB.");
+        });
     }
 
-    // Store encrypted private keys in the database
-    await this.storePrivateKeys(user_name, generatedWallets);
+    async close() {
+        await this.dbClient.close();
+    }
 
-    // Add the user to the database
-    await this.addUser.addNewUser(user_name, generatedWallets, wallet_address);
+    async storePrivateKeys(userName, generatedWallets) {
+        try {
+            const db = this.dbClient.db(this.dbName);
+            const encryptedWallets = generatedWallets.map(wallet => ({
+                network: wallet.network,
+                address: wallet.address,
+                encryptedPrivateKey: this.vaultHandler.encrypt(wallet.private_key),
+            }));
 
-    // Initialize the wallets
-    const walletInitializer = new WalletInitializer(user_name);
-    await walletInitializer.initializeWallets(generatedWallets);
+            await db.collection(this.privateKeyCollection).updateOne(
+                { userName },
+                { $set: { wallets: encryptedWallets } },
+                { upsert: true }
+            );
+        } catch (error) {
+            console.error(`Error storing private keys for user: ${userName}`, error.message);
+            throw new Error("Failed to store private keys.");
+        }
+    }
 
-    // Generate QR codes for the wallets
-    await this.qrCodeManager.generateQRCodeForWallets(user_name, generatedWallets);
+    async getDecryptedPrivateKeys(userName) {
+        try {
+            const db = this.dbClient.db(this.dbName);
+            const userDocument = await db.collection(this.privateKeyCollection).findOne({ userName });
 
-    return generatedWallets;
-  }
+            if (!userDocument || !userDocument.wallets) {
+                throw new Error("No private keys found for this user.");
+            }
 
-  // Generate Base wallet using ethers.js
-  async generateBaseWallet() {
-    const wallet = ethers.Wallet.createRandom();
-    return wallet.address;
-  }
+            return userDocument.wallets.map(wallet => ({
+                network: wallet.network,
+                address: wallet.address,
+                private_key: this.vaultHandler.decrypt(wallet.encryptedPrivateKey),
+            }));
+        } catch (error) {
+            console.error(`Error retrieving private keys for user: ${userName}`, error.message);
+            throw new Error("Failed to retrieve private keys.");
+        }
+    }
 
-  async generateBasePrivateKey() {
-    const wallet = ethers.Wallet.createRandom();
-    return wallet.privateKey;
-  }
+    async generateWalletsForNetworks(user_name, wallet_address, networks = ["Base", "DAG", "ETH", "BNB", "AVAX"]) {
+        if (!user_name || !wallet_address) {
+            throw new Error("Invalid input: user_name and wallet_address are required.");
+        }
+        if (!Array.isArray(networks) || networks.length === 0) {
+            throw new Error("Invalid input: networks must be a non-empty array.");
+        }
 
-  // Generate DAG wallet using dag4.wallet
-  async generateDAGWallet() {
-    const wallet = dagWallet.createWallet();
-    return wallet.address;
-  }
+        const generatedWallets = [];
+        for (const network of networks) {
+            try {
+                const wallet = await this._generateWalletForNetwork(network);
+                if (wallet) {
+                    generatedWallets.push(wallet);
+                    console.log(`Generated wallet for network ${network} for user: ${user_name}`);
+                }
+            } catch (error) {
+                console.warn(`Failed to generate wallet for network ${network}:`, error.message);
+            }
+        }
 
-  async generateDAGPrivateKey() {
-    const wallet = dagWallet.createWallet();
-    return wallet.keyPair.privateKey;
-  }
+        await this.storePrivateKeys(user_name, generatedWallets);
+        await this.addUser.addNewUser(user_name, generatedWallets, wallet_address);
 
-  async generateBNBWallet() {
-    const wallet = ethers.Wallet.createRandom();
-    return wallet.address;
-  }
+        const walletInitializer = new WalletInitializer(user_name);
+        await walletInitializer.initializeWallets(generatedWallets);
 
-  async generateBNBPrivateKey() {
-    const wallet = ethers.Wallet.createRandom();
-    return wallet.privateKey;
-  }
+        await this.qrCodeManager.generateQRCodeForWallets(user_name, generatedWallets);
 
-  async generateAvaxWallet() {
-    const wallet = ethers.Wallet.createRandom();
-    return wallet.address;
-  }
+        return generatedWallets;
+    }
 
-  async generateAvaxPrivateKey() {
-    const wallet = ethers.Wallet.createRandom();
-    return wallet.privateKey;
-  }
+    async _generateWalletForNetwork(network) {
+        switch (network) {
+            case "Base":
+            case "ETH":
+            case "BNB":
+            case "AVAX": {
+                const wallet = ethers.Wallet.createRandom();
+                return { network, address: wallet.address, private_key: wallet.privateKey };
+            }
+            case "DAG": {
+                const wallet = dagWallet.createWallet();
+                return { network, address: wallet.address, private_key: wallet.keyPair.privateKey };
+            }
+            default:
+                throw new Error(`Unsupported network: ${network}`);
+        }
+    }
 }
 
 export default WalletManager;
