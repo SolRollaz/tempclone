@@ -11,6 +11,7 @@ console.log("Loaded Environment Variables:", {
     RPC_URL_BASE: process.env.RPC_URL_BASE,
     RPC_URL_DAG: process.env.RPC_URL_DAG,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+    GAME_API_BASE_URL: process.env.GAME_API_BASE_URL, // Log the Game API Base URL
 });
 
 class SystemConfig {
@@ -64,6 +65,9 @@ class SystemConfig {
 
         // Initialize blockchain providers
         this.providers = this.initializeProviders();
+
+        // Set Game API Base URL with fallback to the specified default
+        this.gameApiBaseUrl = process.env.GAME_API_BASE_URL || "https://hyprmtrx.xyz/api/auth";
     }
 
     /**
@@ -149,6 +153,17 @@ class SystemConfig {
      */
     isNetworkSupported(network) {
         return this.networks.hasOwnProperty(network);
+    }
+
+    /**
+     * Get the base URL for the Game API.
+     * @returns {string} - Game API base URL.
+     */
+    getGameAPIBaseUrl() {
+        if (!this.gameApiBaseUrl.startsWith("http")) {
+            throw new Error(`Invalid Game API Base URL: ${this.gameApiBaseUrl}`);
+        }
+        return this.gameApiBaseUrl;
     }
 }
 
