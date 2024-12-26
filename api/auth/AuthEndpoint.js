@@ -40,66 +40,34 @@ class AuthEndpoint {
         const { user_name, auth_type, user_data, qr_code } = req.body;
         console.log("Raw request body received:", JSON.stringify(req.body, null, 2));
 
-        console.log("Incoming request body:", req.body);
-
-        // QR Code generation
-        if (qr_code === "qr_code") {
-            if (!auth_type || typeof auth_type !== "string" || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
-                return res.status(400).json({
-                    status: "failure",
-                    message: "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.",
-                });
-            }
-
-            try {
-                const qrCodeResult = await this.qrCodeAuth.generateQRCode("default_game", auth_type);
-
-                const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
-
-                res.setHeader("Content-Type", "image/png");
-                return res.send(qrCodeImage);
-            } catch (error) {
-                console.error("QR Code generation error:", error.message);
-                return res.status(500).json({
-                    status: "failure",
-                    message: "Internal server error during QR code generation.",
-                });
-            }
-        }
-
-        // Authentication request validation
+        // Validate input parameters
         if (!auth_type || typeof auth_type !== "string" || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
-            return res.status(400).json({
-                status: "failure",
-                message: "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.",
-            });
+            return this.sendErrorResponse(res, "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.", 400);
         }
 
         if (!user_data || typeof user_data !== "string" || user_data.trim() === "") {
-            return res.status(400).json({
-                status: "failure",
-                message: "Invalid or missing user_data. Must be a public wallet address.",
-            });
+            return this.sendErrorResponse(res, "Invalid or missing user_data. Must be a public wallet address.", 400);
         }
 
         const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
 
+        // Handle QR Code generation
+        if (qr_code === "qr_code") {
+            return await this.handleQRCodeRequest(res, auth_type);
+        }
+
+        // Handle Authentication request
         try {
-            // Check if wallet address already exists
             const walletExists = await this.checkIfWalletExists(user_data);
             if (walletExists) {
-                return res.status(400).json({
-                    status: "failure",
-                    message: "This wallet is already registered with another account.",
-                });
+                return this.sendErrorResponse(res, "This wallet is already registered with another account.", 400);
             }
 
-            // Correctly assign and pass the data to MasterAuth
             const authResult = await this.masterAuth.processAuthRequest(
-                username,           // Correct username
-                "default_game",     // Correct game_name
-                auth_type,          // Correct auth_type ('metamask' or 'stargazer')
-                user_data           // Pass user_data directly as the wallet address
+                username,       // Correct username
+                "default_game", // Correct game_name
+                auth_type,      // Correct auth_type ('metamask' or 'stargazer')
+                user_data       // Correct wallet address
             );
 
             if (authResult.status === "success") {
@@ -113,18 +81,34 @@ class AuthEndpoint {
                 return res.status(401).json(authResult);
             }
         } catch (error) {
-            console.error("Authentication error:", error.message);
-            return res.status(500).json({
-                status: "failure",
-                message: "Internal server error during authentication.",
+            console.error("Authentication error:", {
+                message: error.message,
+                user_name: username,
+                auth_type,
+                user_data,
             });
+            return this.sendErrorResponse(res, "Internal server error during authentication.", 500);
+        }
+    }
+
+    /**
+     * Handle QR Code requests.
+     */
+    async handleQRCodeRequest(res, auth_type) {
+        try {
+            const qrCodeResult = await this.qrCodeAuth.generateQRCode("default_game", auth_type);
+            const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
+
+            res.setHeader("Content-Type", "image/png");
+            return res.send(qrCodeImage);
+        } catch (error) {
+            console.error("QR Code generation error:", error.message);
+            return this.sendErrorResponse(res, "Internal server error during QR code generation.", 500);
         }
     }
 
     /**
      * Check if a wallet address already exists in the database.
-     * @param {string} wallet_address - The wallet address to check.
-     * @returns {boolean} - True if the wallet exists, otherwise false.
      */
     async checkIfWalletExists(wallet_address) {
         try {
@@ -156,6 +140,16 @@ class AuthEndpoint {
             console.error("MongoDB connection error:", error.message);
             throw error;
         }
+    }
+
+    /**
+     * Send error response with a consistent structure.
+     */
+    sendErrorResponse(res, message, statusCode) {
+        return res.status(statusCode).json({
+            status: "failure",
+            message,
+        });
     }
 }
 
