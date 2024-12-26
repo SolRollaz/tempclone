@@ -41,9 +41,9 @@ class AuthEndpoint {
         const { user_name, auth_type, user_data, qr_code } = req.body;
 
         // Handle QR code authentication
-        if (qr_code) {
+        if (qr_code === "qr_code") {
             try {
-                const authResult = await this.qrCodeAuth.processQRCodeAuth("default_game", user_data, auth_type);
+                const authResult = await this.qrCodeAuth.processQRCodeAuth("default_game", {}, auth_type || "default");
                 return res.json(authResult);
             } catch (error) {
                 console.error("Error during QR Code authentication:", error.message);
@@ -54,19 +54,26 @@ class AuthEndpoint {
             }
         }
 
-        const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
-
         // Validate required fields
-        if (!auth_type || !user_data) {
+        if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
             return res.status(400).json({
                 status: "failure",
-                message: "Authentication type and user data are required.",
+                message: "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.",
             });
         }
 
+        if (!user_data || typeof user_data !== "string" || user_data.trim() === "") {
+            return res.status(400).json({
+                status: "failure",
+                message: "Invalid or missing user_data. Must be a public wallet address.",
+            });
+        }
+
+        const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
+
         try {
             // Check if the wallet address already exists
-            const walletExists = await this.checkIfWalletExists(user_data);
+            const walletExists = await this.checkIfWalletExists({ wallet_address: user_data });
             if (walletExists) {
                 return res.status(400).json({
                     status: "failure",
@@ -79,7 +86,7 @@ class AuthEndpoint {
                 username,
                 "default_game",
                 auth_type,
-                user_data
+                { wallet_address: user_data }
             );
 
             if (authResult.status === "success") {
@@ -103,23 +110,18 @@ class AuthEndpoint {
 
     /**
      * Check if a wallet address already exists in the users collection.
-     * @param {Object} user_data - The user data containing wallet addresses.
+     * @param {Object} user_data - The user data containing wallet address.
      * @returns {boolean} - True if the wallet exists, otherwise false.
      */
     async checkIfWalletExists(user_data) {
         try {
             await this.connectToDB();
-            const { DAG, AVAX, BNB, ETH } = user_data;
+            const { wallet_address } = user_data;
             const db = this.client.db(this.dbName);
             const usersCollection = db.collection("users");
 
             const existingUser = await usersCollection.findOne({
-                $or: [
-                    { "auth_wallets.DAG": DAG },
-                    { "auth_wallets.AVAX": AVAX },
-                    { "auth_wallets.BNB": BNB },
-                    { "auth_wallets.ETH": ETH },
-                ],
+                "auth_wallets.wallet_address": wallet_address,
             });
 
             return existingUser !== null;
