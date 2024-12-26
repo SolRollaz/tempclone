@@ -1,7 +1,7 @@
+import 'dotenv/config'; // Load environment variables from .env file
 import { JsonRpcProvider } from "ethers";
-import 'dotenv/config'; // Load .env configuration
 
-// Debug: Log environment variables for clarity
+// Debug: Log environment variables to ensure they're loaded correctly
 console.log("Loaded Environment Variables:", {
     MONGO_URI: process.env.MONGO_URI,
     MONGO_DB_NAME: process.env.MONGO_DB_NAME,
@@ -15,18 +15,22 @@ console.log("Loaded Environment Variables:", {
 
 class SystemConfig {
     constructor() {
-        // MongoDB configuration based on DigitalOcean details
+        // MongoDB configuration with fallback values
         this.mongoConfig = {
-            uri: process.env.MONGO_URI || "mongodb+srv://doadmin:60n7Am9V8RB1Q34Y@private-db-mongodb-nyc1-68998-a603f74a.mongo.ondigitalocean.com/admin?retryWrites=true&w=majority",
-            dbName: process.env.MONGO_DB_NAME || "admin",
+            uri: process.env.MONGO_URI || "mongodb://localhost:27017/default_db",
+            dbName: process.env.MONGO_DB_NAME || "default_db",
         };
+
+        // Debug: Log MongoDB configuration
+        console.log("SystemConfig Mongo URI:", this.mongoConfig.uri);
+        console.log("SystemConfig Mongo DB Name:", this.mongoConfig.dbName);
 
         // Validate Mongo URI
         if (!this.mongoConfig.uri.startsWith("mongodb")) {
             throw new Error(`Invalid MongoDB URI: ${this.mongoConfig.uri}`);
         }
 
-        // Supported blockchain networks
+        // Supported blockchain networks configuration
         this.networks = {
             ETH: {
                 name: "Ethereum",
@@ -55,13 +59,16 @@ class SystemConfig {
             },
         };
 
+        // Debug: Log supported networks
+        console.log("Supported Networks:", Object.keys(this.networks));
+
         // Initialize blockchain providers
         this.providers = this.initializeProviders();
     }
 
     /**
-     * Initialize blockchain providers using configured RPC URLs.
-     * @returns {Object} - Providers keyed by network.
+     * Initialize blockchain providers for each network using RPC URLs.
+     * @returns {Object} - Providers keyed by network name.
      */
     initializeProviders() {
         const providers = {};
@@ -87,7 +94,7 @@ class SystemConfig {
 
     /**
      * Get the MongoDB database name.
-     * @returns {string} - Database name.
+     * @returns {string} - MongoDB database name.
      */
     getMongoDbName() {
         return this.mongoConfig.dbName;
@@ -95,8 +102,8 @@ class SystemConfig {
 
     /**
      * Get configuration for a specific network.
-     * @param {string} network - The network key (e.g., 'ETH', 'BNB').
-     * @returns {Object} - Network configuration.
+     * @param {string} network - Network key (e.g., 'ETH', 'BNB').
+     * @returns {Object} - Configuration for the specified network.
      */
     getNetworkConfig(network) {
         if (!this.networks[network]) {
@@ -107,8 +114,8 @@ class SystemConfig {
 
     /**
      * Get the provider for a specific network.
-     * @param {string} network - The network key (e.g., 'ETH', 'BNB').
-     * @returns {JsonRpcProvider} - ethers.js provider instance.
+     * @param {string} network - Network key (e.g., 'ETH', 'BNB').
+     * @returns {JsonRpcProvider} - Provider instance for the specified network.
      */
     getProvider(network) {
         const provider = this.providers[network];
@@ -119,25 +126,25 @@ class SystemConfig {
     }
 
     /**
-     * Get the fee wallet for a specific network.
-     * @param {string} network - The network key (e.g., 'ETH', 'BNB').
-     * @returns {string} - Fee wallet address.
+     * Get the fee wallet address for a specific network.
+     * @param {string} network - Network key (e.g., 'ETH', 'BNB').
+     * @returns {string} - Fee wallet address for the specified network.
      */
     getFeeWallet(network) {
         return this.getNetworkConfig(network).feeWallet;
     }
 
     /**
-     * Get the list of all supported networks.
-     * @returns {Array<string>} - Array of network keys (e.g., ['ETH', 'BNB']).
+     * Get a list of all supported networks.
+     * @returns {Array<string>} - List of supported network keys (e.g., ['ETH', 'BNB']).
      */
     getSupportedNetworks() {
         return Object.keys(this.networks);
     }
 
     /**
-     * Validate if a network is supported.
-     * @param {string} network - The network key to validate.
+     * Check if a network is supported.
+     * @param {string} network - Network key to validate.
      * @returns {boolean} - True if the network is supported, false otherwise.
      */
     isNetworkSupported(network) {
