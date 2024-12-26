@@ -28,7 +28,7 @@ class AuthEndpoint {
 
         this.mongoUri = mongoUri;
         this.dbName = dbName;
-        this.client = new MongoClient(this.mongoUri, { useNewUrlParser: true, useUnifiedTopology: true });
+        this.client = new MongoClient(this.mongoUri, { useUnifiedTopology: true });
 
         console.log("Mongo URI being used:", this.mongoUri);
         console.log("Mongo DB Name being used:", this.dbName);
@@ -45,14 +45,13 @@ class AuthEndpoint {
      * Set up the /auth endpoint for authentication.
      */
     setupRoutes() {
-        this.app.post("/:game_name/auth", async (req, res) => {
+        this.app.post("/auth", async (req, res) => {
             const { user_name, auth_type, user_data, qr_code } = req.body;
-            const { game_name } = req.params;
 
             // Handle QR code authentication
             if (qr_code) {
                 try {
-                    const authResult = await this.qrCodeAuth.processQRCodeAuth(game_name, user_data, auth_type);
+                    const authResult = await this.qrCodeAuth.processQRCodeAuth("default_game", user_data, auth_type);
                     return res.json(authResult);
                 } catch (error) {
                     console.error("Error during QR Code authentication:", error.message);
@@ -86,7 +85,7 @@ class AuthEndpoint {
                 // Proceed with wallet authentication using MasterAuth
                 const authResult = await this.masterAuth.processAuthRequest(
                     username,
-                    game_name,
+                    "default_game",
                     auth_type,
                     user_data
                 );
