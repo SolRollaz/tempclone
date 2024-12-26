@@ -5,6 +5,8 @@ import QR_Code_Auth from "../../HVM/QRCode_Auth.js"; // Import QR Code Auth clas
 import SystemConfig from "../../systemConfig.js"; // Centralized system configuration
 import { MongoClient } from "mongodb";
 
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
+
 
 class AuthEndpoint {
     constructor() {
