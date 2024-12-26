@@ -77,6 +77,14 @@ class SystemConfig {
         return providers;
     }
 
+    get mongoUrl() {
+        return this.mongoConfig.uri;
+    }
+
+    get dbName() {
+        return this.mongoConfig.dbName;
+    }
+
     getNetworkConfig(network) {
         console.log(`Fetching config for network: ${network}`);
         if (!this.networks[network]) {
@@ -96,14 +104,6 @@ class SystemConfig {
     getFeeWallet(network) {
         const config = this.getNetworkConfig(network);
         return config.feeWallet;
-    }
-
-    getMongoUri() {
-        return this.mongoConfig.uri;
-    }
-
-    getMongoDbName() {
-        return this.mongoConfig.dbName;
     }
 
     getSupportedNetworks() {
