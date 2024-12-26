@@ -7,8 +7,8 @@ import qrCode from "qrcode"; // QR code generation library
 import fs from "fs";
 import path from "path";
 import WalletManager from "./WalletManager.js"; // Import WalletManager to generate internal wallets
-
 console.log("Ethers Module:", ethers);
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
 
 
 class QR_Code_Auth {
