@@ -7,19 +7,30 @@ import path from "path";
 import SystemConfig from "../systemConfig.js"; // Import SystemConfig for better configurability
 
 class Send_Balances {
-    constructor() {
-        this.systemConfig = new SystemConfig(); // Create an instance of SystemConfig
+    constructor(systemConfig) {
+        // Ensure SystemConfig is passed and valid
+        if (!systemConfig) {
+            throw new Error("SystemConfig instance is required to initialize Send_Balances.");
+        }
+        this.systemConfig = systemConfig;
 
-        // Ensure `getGameAPIBaseUrl` is defined in `SystemConfig`
+        // Ensure `getGameAPIBaseUrl` is defined and callable
         if (typeof this.systemConfig.getGameAPIBaseUrl !== "function") {
             throw new Error("SystemConfig is missing the method getGameAPIBaseUrl.");
         }
 
-        this.baseGameAPIEndpoint = this.systemConfig.getGameAPIBaseUrl(); // Get base game API URL
+        // Retrieve the Game API Base URL from SystemConfig
+        this.baseGameAPIEndpoint = this.systemConfig.getGameAPIBaseUrl();
+
+        // Validate that the Base URL is not empty or invalid
         if (!this.baseGameAPIEndpoint) {
-            throw new Error("Game API base URL is not defined in SystemConfig.");
+            throw new Error("Game API base URL is not defined or invalid in SystemConfig.");
         }
+
+        console.log("Game API Base URL being used:", this.baseGameAPIEndpoint);
     }
+}
+
 
     /**
      * Send balances and token logos to the game API.
