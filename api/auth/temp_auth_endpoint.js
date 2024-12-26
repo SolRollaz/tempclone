@@ -11,11 +11,14 @@ class AuthEndpoint {
         this.app = express();
         this.app.use(bodyParser.json());
 
-        // Initialize dependencies
+        // Initialize SystemConfig
         this.systemConfig = new SystemConfig();
+
+        // Get MongoDB URI and Database Name from SystemConfig or environment variables
         const mongoUri = process.env.MONGO_URI || this.systemConfig.getMongoUri();
         const dbName = process.env.MONGO_DB_NAME || this.systemConfig.getMongoDbName();
 
+        // Validate MongoDB connection details
         if (!mongoUri) {
             throw new Error("Mongo URI is not defined. Please check your environment variables or SystemConfig.");
         }
@@ -30,11 +33,12 @@ class AuthEndpoint {
         console.log("Mongo URI being used:", this.mongoUri);
         console.log("Mongo DB Name being used:", this.dbName);
 
-        // Initialize other dependencies
-        this.masterAuth = new MasterAuth(this.client, this.dbName); // Pass MongoClient and dbName
-        this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName); // Pass MongoClient and dbName
+        // Initialize other dependencies and pass required dependencies
+        this.masterAuth = new MasterAuth(this.client, this.dbName, this.systemConfig);
+        this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName, this.systemConfig);
 
-        this.setupRoutes(); // Set up routes for authentication
+        // Setup API routes
+        this.setupRoutes();
     }
 
     /**
