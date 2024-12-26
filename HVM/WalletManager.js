@@ -7,20 +7,30 @@ import { MongoClient } from "mongodb";
 import AddUser from "./AddUser.js";
 import QRCodeManager from "./QRCodeManager.js";
 import WalletInitializer from "./WalletInitializer.js";
-const mongoUri = process.env.MONGO_URI; // Environment variable for MongoDB URI
 
 class WalletManager {
     constructor(systemConfig) {
+        this.systemConfig = systemConfig;
+
+        // Debug: Log the Mongo URI
+        console.log("SystemConfig Mongo URI:", systemConfig.mongoUrl);
+
+        // Validate Mongo URI
+        if (!systemConfig.mongoUrl || !systemConfig.mongoUrl.startsWith("mongodb")) {
+            throw new Error(`Invalid or undefined Mongo URI: ${systemConfig.mongoUrl}`);
+        }
+
         this.dbClient = new MongoClient(systemConfig.mongoUrl, { useUnifiedTopology: true });
-        this.dbName = systemConfig.dbName;
+        this.dbName = systemConfig.dbName || "hyprmtrx";
         this.privateKeyCollection = "private_keys";
         this.vaultHandler = new VaultHandler();
         this.addUser = new AddUser(systemConfig);
         this.qrCodeManager = new QRCodeManager();
-        this.systemConfig = systemConfig;
 
-        // Connect to the database
-        this.dbClient.connect().catch((error) => {
+        // Attempt to connect to MongoDB
+        this.dbClient.connect().then(() => {
+            console.log("Successfully connected to MongoDB.");
+        }).catch((error) => {
             console.error("Error connecting to MongoDB:", error.message);
             throw new Error("Failed to connect to MongoDB.");
         });
@@ -44,29 +54,10 @@ class WalletManager {
                 { $set: { wallets: encryptedWallets } },
                 { upsert: true }
             );
+            console.log(`Private keys stored successfully for user: ${userName}`);
         } catch (error) {
             console.error(`Error storing private keys for user: ${userName}`, error.message);
             throw new Error("Failed to store private keys.");
-        }
-    }
-
-    async getDecryptedPrivateKeys(userName) {
-        try {
-            const db = this.dbClient.db(this.dbName);
-            const userDocument = await db.collection(this.privateKeyCollection).findOne({ userName });
-
-            if (!userDocument || !userDocument.wallets) {
-                throw new Error("No private keys found for this user.");
-            }
-
-            return userDocument.wallets.map(wallet => ({
-                network: wallet.network,
-                address: wallet.address,
-                private_key: this.vaultHandler.decrypt(wallet.encryptedPrivateKey),
-            }));
-        } catch (error) {
-            console.error(`Error retrieving private keys for user: ${userName}`, error.message);
-            throw new Error("Failed to retrieve private keys.");
         }
     }
 
