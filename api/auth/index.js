@@ -1,6 +1,8 @@
 // Load environment variables from the .env file
 import dotenv from 'dotenv';
 import path from 'path';
+import AuthEndpoint from './AuthEndpoint.js'; // Correct path to AuthEndpoint
+const authAPI = new AuthEndpoint();
 
 // Specify the path to .env explicitly
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
