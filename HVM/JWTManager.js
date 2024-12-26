@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import SystemConfig from "../systemConfig.js"; // `.js` is mandatory for local imports
+import SystemConfig from "../systemConfig.js"; // Ensure the correct path with `.js` extension for ES modules
 
 class JWTManager {
     constructor(mongoClient, dbName) {
@@ -10,59 +10,68 @@ class JWTManager {
             throw new Error("Database name is required to initialize JWTManager.");
         }
 
-        this.mongoClient = mongoClient;  // MongoDB client instance
-        this.dbName = dbName;            // Database name
-        this.jwtSecret = process.env.JWT_SECRET || "DEFAULT_SECRET"; // Load secret securely
+        // Initialize properties
+        this.mongoClient = mongoClient;
+        this.dbName = dbName;
+        this.jwtSecret = process.env.JWT_SECRET || "DEFAULT_SECRET"; // Default JWT secret for fallback
+        this.systemConfig = new SystemConfig(); // SystemConfig to fetch network data
         this.usersCollection = this.mongoClient.db(this.dbName).collection("users"); // Access the users collection
-        this.systemConfig = new SystemConfig(); // Integrating SystemConfig to fetch network data
+
+        console.log("JWTManager initialized with DB Name:", this.dbName);
     }
 
     /**
      * Generate a JWT token for a user.
-     * @param {string} user_name - The user name.
-     * @param {object} authWallets - The user's authentication wallet details.
-     * @param {string} network - The network key (e.g., 'ETH', 'BNB') for which to generate the token.
+     * @param {string} user_name - The username.
+     * @param {object} authWallets - User's authenticated wallets.
+     * @param {string} network - The network key (e.g., 'ETH', 'BNB') for the token.
      * @returns {string} - The JWT token.
      */
     async generateToken(user_name, authWallets, network) {
         try {
-            // Validate network with SystemConfig
+            // Validate network using SystemConfig
             const networkConfig = this.systemConfig.getNetworkConfig(network);
 
-            // Include the network-specific feeWallet and other settings in the token payload
+            // Prepare token payload
             const payload = {
                 user_name,
                 authWallets,
-                networkConfig, // Adds network-specific information to the payload (feeWallet, RPC URL, etc.)
+                networkConfig, // Adds network-specific configuration to the payload
             };
 
+            // Sign the token
             const token = jwt.sign(payload, this.jwtSecret, { expiresIn: "1h" });
 
-            // Store the token in the MongoDB users collection (optional)
+            // Optionally store the token in MongoDB
             await this.storeToken(user_name, token);
 
+            console.log(`Token generated for user: ${user_name}, Network: ${network}`);
             return token;
         } catch (error) {
-            console.error("Error generating token:", { user_name, error: error.message });
+            console.error("Error generating token:", { user_name, network, error: error.message });
             throw new Error("Failed to generate token.");
         }
     }
 
     /**
      * Store the generated token in the MongoDB users collection.
-     * @param {string} user_name - The user name to store the token for.
-     * @param {string} token - The JWT token to store.
+     * @param {string} user_name - The username.
+     * @param {string} token - The JWT token.
      */
     async storeToken(user_name, token) {
         try {
             const result = await this.usersCollection.updateOne(
                 { user_name },
-                { $push: { tokens: token } },  // Use $push to add the token to the array
-                { upsert: true } // Create a new document if user doesn't exist
+                { $push: { tokens: token } }, // Add the token to the user's token array
+                { upsert: true } // Create a new document if the user does not exist
             );
 
-            if (result.modifiedCount === 0 && result.upsertedCount === 0) {
-                console.warn("No changes made to the user document. Verify the user exists.");
+            if (result.modifiedCount > 0) {
+                console.log(`Token stored successfully for user: ${user_name}`);
+            } else if (result.upsertedCount > 0) {
+                console.log(`New user document created for: ${user_name}`);
+            } else {
+                console.warn(`No changes made to user document for: ${user_name}`);
             }
         } catch (error) {
             console.error("Error storing token in MongoDB:", { user_name, error: error.message });
@@ -73,19 +82,43 @@ class JWTManager {
     /**
      * Validate the JWT token.
      * @param {string} token - The JWT token to validate.
-     * @returns {object} - The decoded payload of the token if valid, or an error if invalid.
+     * @returns {object} - Decoded payload if valid.
      */
     async validateToken(token) {
         try {
             const decoded = jwt.verify(token, this.jwtSecret);
+            console.log("Token validated successfully:", decoded);
             return decoded;
         } catch (error) {
             if (error.name === "TokenExpiredError") {
-                console.warn("Token has expired.");
+                console.warn("Token expired:", error.message);
                 throw new Error("Token has expired.");
             }
             console.error("Invalid token:", error.message);
             throw new Error("Invalid token.");
+        }
+    }
+
+    /**
+     * Revoke a token by removing it from the user's stored tokens.
+     * @param {string} user_name - The username.
+     * @param {string} token - The JWT token to revoke.
+     */
+    async revokeToken(user_name, token) {
+        try {
+            const result = await this.usersCollection.updateOne(
+                { user_name },
+                { $pull: { tokens: token } } // Remove the token from the user's token array
+            );
+
+            if (result.modifiedCount > 0) {
+                console.log(`Token revoked successfully for user: ${user_name}`);
+            } else {
+                console.warn(`Token not found or already revoked for user: ${user_name}`);
+            }
+        } catch (error) {
+            console.error("Error revoking token:", { user_name, error: error.message });
+            throw new Error("Failed to revoke token.");
         }
     }
 }
