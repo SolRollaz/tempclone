@@ -36,24 +36,30 @@ class QR_Code_Auth {
     }
 
     /**
-     * Generate a QR code for a session or game.
-     * No wallet data is required at this step.
+     * Generate a QR code based on the auth_type for a session or game.
      * @param {string} game_name - Name of the game.
+     * @param {string} auth_type - Type of authentication ("metamask" or "stargazer").
      * @returns {object} - QR code generation result.
      */
-    async generateQRCode(game_name) {
+    async generateQRCode(game_name, auth_type) {
+        if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
+            throw new Error("Invalid auth_type. Must be 'metamask' or 'stargazer'.");
+        }
+
         try {
-            const sessionId = `${game_name}_${Date.now()}`; // Generate a unique session ID
+            const sessionId = `${game_name}_${auth_type}_${Date.now()}`; // Generate a unique session ID
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
 
-            const qrCodeData = JSON.stringify({
+            // Embed specific data for the auth_type
+            const qrCodeData = {
                 session_id: sessionId,
                 game_name,
+                auth_type,
                 timestamp: Date.now(),
-            });
+            };
 
             // Generate the QR code
-            await qrCode.toFile(filePath, qrCodeData, {
+            await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
                 color: {
                     dark: "#000000", // QR code dark color
                     light: "#ffffff", // QR code light color
@@ -66,6 +72,7 @@ class QR_Code_Auth {
                 message: "QR code generated.",
                 qr_code_path: filePath,
                 session_id: sessionId,
+                auth_type,
             };
         } catch (error) {
             console.error("Error generating QR code:", error.message);
@@ -77,7 +84,7 @@ class QR_Code_Auth {
      * Process authentication after QR code is scanned.
      * Wallet data must be validated during this step.
      * @param {object} user_data - Wallet data for validation.
-     * @param {string} auth_type - Type of authentication (e.g., "metamask", "stargazer").
+     * @param {string} auth_type - Type of authentication ("metamask" or "stargazer").
      * @returns {object} - Authentication result.
      */
     async authenticateQRCode(user_data, auth_type) {
