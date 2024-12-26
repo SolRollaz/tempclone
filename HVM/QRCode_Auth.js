@@ -1,6 +1,4 @@
 import dag4 from "@stardust-collective/dag4";
-const { WalletClient } = dag4;
-
 import { ethers } from "ethers";
 import axios from "axios";
 import qrCode from "qrcode"; // QR code generation library
@@ -10,15 +8,17 @@ import WalletManager from "./WalletManager.js"; // Import WalletManager to gener
 
 class QR_Code_Auth {
     constructor() {
-        this.walletClient = new WalletClient();
+        this.walletClient = dag4.wallet; // Use `dag4.wallet` directly
         this.walletManager = new WalletManager(); // Initialize WalletManager
-        this.qrCodeDir = path.join(__dirname, "..", "QR_Codes"); // Directory for storing QR code images
+        this.qrCodeDir = path.join(process.cwd(), "QR_Codes"); // Directory for storing QR code images
 
         // Ensure the QR code directory exists
         this.ensureQRCodeDirectory();
     }
 
-    // Ensures the QR code directory exists
+    /**
+     * Ensures the QR code directory exists.
+     */
     ensureQRCodeDirectory() {
         try {
             if (!fs.existsSync(this.qrCodeDir)) {
@@ -30,7 +30,13 @@ class QR_Code_Auth {
         }
     }
 
-    // Process the QR code authentication after successful wallet authentication
+    /**
+     * Process the QR code authentication after successful wallet authentication.
+     * @param {string} game_name - Name of the game for authentication.
+     * @param {object} user_data - User data containing wallet addresses.
+     * @param {string} auth_type - Type of authentication.
+     * @returns {object} - Result of the authentication process.
+     */
     async processQRCodeAuth(game_name, user_data, auth_type) {
         try {
             // Validate user data fields
@@ -38,19 +44,22 @@ class QR_Code_Auth {
                 throw new Error("Invalid user data. Missing required fields: DAG, wallet_address, or signature.");
             }
 
-            // 1. Authenticate the wallet based on the wallet type (DAG or Metamask)
+            // Authenticate the wallet based on the wallet type (DAG or Metamask)
             const isAuthenticated = await this.authenticateWallet(auth_type, user_data);
             if (!isAuthenticated) {
                 return { status: "failure", message: "Wallet authentication failed." };
             }
 
-            // 2. Generate and store HyprMtrx wallets (internal wallets)
-            const generatedWallets = await this.walletManager.generateHyprmtrxWallets(user_data);
+            // Generate and store HyprMtrx wallets (internal wallets)
+            const generatedWallets = await this.walletManager.generateWalletsForNetworks(
+                user_data.user_name,
+                user_data.wallet_address
+            );
 
-            // 3. Generate or retrieve a QR code file
+            // Generate or retrieve a QR code file
             const qrCodePath = await this.generateQRCodeFile(game_name, user_data, generatedWallets);
 
-            // 4. Send the QR code to the game API for display
+            // Send the QR code to the game API for display
             const gameApiResponse = await this.sendQRCodeToGame(game_name, qrCodePath);
 
             return gameApiResponse; // Send back response from the game API
@@ -60,7 +69,12 @@ class QR_Code_Auth {
         }
     }
 
-    // Authenticate the wallet (either Metamask or Stargazer)
+    /**
+     * Authenticate the wallet (either Metamask or Stargazer).
+     * @param {string} auth_type - Type of authentication.
+     * @param {object} user_data - User data containing wallet addresses and signature.
+     * @returns {boolean} - True if authenticated, otherwise false.
+     */
     async authenticateWallet(auth_type, user_data) {
         try {
             if (auth_type === "stargazer") {
@@ -76,7 +90,13 @@ class QR_Code_Auth {
         }
     }
 
-    // Authenticate with Metamask (signature-based verification)
+    /**
+     * Authenticate with Metamask (signature-based verification).
+     * @param {string} message - Message to be signed.
+     * @param {string} signature - Signature provided by the user.
+     * @param {string} walletAddress - Wallet address to verify.
+     * @returns {boolean} - True if the signature is valid, otherwise false.
+     */
     async authenticateWithMetamask(message, signature, walletAddress) {
         try {
             const signerAddress = ethers.utils.verifyMessage(message, signature);
@@ -87,7 +107,13 @@ class QR_Code_Auth {
         }
     }
 
-    // Generate or retrieve a QR code file for the game
+    /**
+     * Generate or retrieve a QR code file for the game.
+     * @param {string} game_name - Name of the game.
+     * @param {object} user_data - User data containing wallet addresses.
+     * @param {array} generatedWallets - Generated HyprMtrx wallets.
+     * @returns {string} - Path to the generated QR code file.
+     */
     async generateQRCodeFile(game_name, user_data, generatedWallets) {
         try {
             // Determine the file path for the QR code
@@ -123,10 +149,15 @@ class QR_Code_Auth {
         }
     }
 
-    // Send the generated QR code file to the game API for display (game can show this to the player)
+    /**
+     * Send the generated QR code file to the game API for display.
+     * @param {string} game_name - Name of the game.
+     * @param {string} qrCodePath - Path to the QR code file.
+     * @returns {object} - Response from the game API.
+     */
     async sendQRCodeToGame(game_name, qrCodePath) {
         try {
-            const gameApiUrl = `${process.env.GAME_API_BASE_URL || "https://hyp3rmatrix.xyz"}/${game_name}/auth`; // Game API URL
+            const gameApiUrl = `${process.env.GAME_API_BASE_URL || "https://hyprmtrx.xyz/api/auth"}/${game_name}/auth`; // Game API URL
 
             // Read the QR code file and convert it to Base64
             const qrCodeBase64 = fs.readFileSync(qrCodePath, { encoding: "base64" });
