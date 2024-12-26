@@ -1,6 +1,8 @@
 import dag4 from "@stardust-collective/dag4";
 import { ethers } from "ethers";
 import SystemConfig from "../systemConfig.js"; // Include `.js` extension for local files
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
+
 
 // Destructure wallet from dag4
 const { wallet: dagWallet } = dag4;
