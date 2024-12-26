@@ -4,6 +4,7 @@ import MasterAuth from "../../HVM/MasterAuth.js";
 import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
 import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
+import fs from "fs";
 
 class AuthEndpoint {
     constructor() {
@@ -40,21 +41,27 @@ class AuthEndpoint {
     async handleRequest(req, res) {
         const { user_name, auth_type, user_data, qr_code } = req.body;
 
-        // Handle QR code authentication
+        // Handle QR code generation and response
         if (qr_code === "qr_code") {
             try {
-                const authResult = await this.qrCodeAuth.processQRCodeAuth("default_game", {}, auth_type || "default");
-                return res.json(authResult);
+                const qrCodeResult = await this.qrCodeAuth.generateQRCode("default_game");
+
+                // Read the generated QR code file
+                const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
+
+                // Send the QR code image back to Unity
+                res.setHeader("Content-Type", "image/png");
+                return res.send(qrCodeImage);
             } catch (error) {
-                console.error("Error during QR Code authentication:", error.message);
+                console.error("Error during QR Code generation:", error.message);
                 return res.status(500).json({
                     status: "failure",
-                    message: "Internal server error during QR code authentication.",
+                    message: "Internal server error during QR code generation.",
                 });
             }
         }
 
-        // Validate required fields
+        // Validate required fields for wallet authentication
         if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
             return res.status(400).json({
                 status: "failure",
