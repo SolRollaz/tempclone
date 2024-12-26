@@ -11,11 +11,10 @@ class AuthEndpoint {
         // Initialize SystemConfig
         this.systemConfig = new SystemConfig();
 
-        // Get MongoDB URI and Database Name from SystemConfig or environment variables
+        // Get MongoDB URI and Database Name
         const mongoUri = process.env.MONGO_URI || this.systemConfig.getMongoUri();
         const dbName = process.env.MONGO_DB_NAME || this.systemConfig.getMongoDbName();
 
-        // Validate MongoDB connection details
         if (!mongoUri) {
             throw new Error("Mongo URI is not defined. Please check your environment variables or SystemConfig.");
         }
@@ -27,10 +26,9 @@ class AuthEndpoint {
         this.dbName = dbName;
         this.client = new MongoClient(this.mongoUri, { useUnifiedTopology: true });
 
-        console.log("Mongo URI being used:", this.mongoUri);
-        console.log("Mongo DB Name being used:", this.dbName);
+        console.log("Mongo URI:", this.mongoUri);
+        console.log("Mongo DB Name:", this.dbName);
 
-        // Initialize other dependencies and pass required dependencies
         this.masterAuth = new MasterAuth(this.client, this.dbName, this.systemConfig);
         this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName, this.systemConfig);
     }
@@ -41,9 +39,11 @@ class AuthEndpoint {
     async handleRequest(req, res) {
         const { user_name, auth_type, user_data, qr_code } = req.body;
 
-        // Handle QR code generation and response
+        console.log("Incoming request body:", req.body);
+
+        // QR Code generation
         if (qr_code === "qr_code") {
-            if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
+            if (!auth_type || typeof auth_type !== "string" || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
                 return res.status(400).json({
                     status: "failure",
                     message: "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.",
@@ -53,14 +53,12 @@ class AuthEndpoint {
             try {
                 const qrCodeResult = await this.qrCodeAuth.generateQRCode("default_game", auth_type);
 
-                // Read the generated QR code file
                 const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
 
-                // Send the QR code image back to Unity
                 res.setHeader("Content-Type", "image/png");
                 return res.send(qrCodeImage);
             } catch (error) {
-                console.error("Error during QR Code generation:", error.message);
+                console.error("QR Code generation error:", error.message);
                 return res.status(500).json({
                     status: "failure",
                     message: "Internal server error during QR code generation.",
@@ -68,8 +66,8 @@ class AuthEndpoint {
             }
         }
 
-        // Validate required fields for wallet authentication
-        if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
+        // Authentication request validation
+        if (!auth_type || typeof auth_type !== "string" || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
             return res.status(400).json({
                 status: "failure",
                 message: "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.",
@@ -86,8 +84,8 @@ class AuthEndpoint {
         const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
 
         try {
-            // Check if the wallet address already exists
-            const walletExists = await this.checkIfWalletExists({ wallet_address: user_data });
+            // Check if wallet address already exists
+            const walletExists = await this.checkIfWalletExists(user_data);
             if (walletExists) {
                 return res.status(400).json({
                     status: "failure",
@@ -95,12 +93,12 @@ class AuthEndpoint {
                 });
             }
 
-            // Proceed with wallet authentication using MasterAuth
+            // Correctly assign and pass the data to MasterAuth
             const authResult = await this.masterAuth.processAuthRequest(
-                username,
-                "default_game",
-                auth_type,
-                { wallet_address: user_data }
+                username,           // Correct username
+                "default_game",     // Correct game_name
+                auth_type,          // Correct auth_type ('metamask' or 'stargazer')
+                user_data           // Pass user_data directly as the wallet address
             );
 
             if (authResult.status === "success") {
@@ -111,10 +109,10 @@ class AuthEndpoint {
                     walletData: authResult.walletData,
                 });
             } else {
-                return res.status(401).json(authResult); // Return failure message from MasterAuth
+                return res.status(401).json(authResult);
             }
         } catch (error) {
-            console.error("Error during authentication:", error.message);
+            console.error("Authentication error:", error.message);
             return res.status(500).json({
                 status: "failure",
                 message: "Internal server error during authentication.",
@@ -123,14 +121,13 @@ class AuthEndpoint {
     }
 
     /**
-     * Check if a wallet address already exists in the users collection.
-     * @param {Object} user_data - The user data containing wallet address.
+     * Check if a wallet address already exists in the database.
+     * @param {string} wallet_address - The wallet address to check.
      * @returns {boolean} - True if the wallet exists, otherwise false.
      */
-    async checkIfWalletExists(user_data) {
+    async checkIfWalletExists(wallet_address) {
         try {
             await this.connectToDB();
-            const { wallet_address } = user_data;
             const db = this.client.db(this.dbName);
             const usersCollection = db.collection("users");
 
