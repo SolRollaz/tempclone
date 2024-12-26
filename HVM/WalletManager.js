@@ -1,15 +1,13 @@
-import dag4 from "@stardust-collective/dag4";
-const { wallet: dagWallet } = dag4;
-
-import { ethers } from "ethers";
-import VaultHandler from "./VaultHandler.js";
 import { MongoClient } from "mongodb";
+import VaultHandler from "./VaultHandler.js";
 import AddUser from "./AddUser.js";
 import QRCodeManager from "./QRCodeManager.js";
-import WalletInitializer from "./WalletInitializer.js";
 
 class WalletManager {
     constructor(systemConfig) {
+        if (!systemConfig) {
+            throw new Error("SystemConfig is required to initialize WalletManager.");
+        }
         this.systemConfig = systemConfig;
 
         // Debug: Log the MongoDB configuration
@@ -22,6 +20,7 @@ class WalletManager {
             throw new Error(`Invalid or undefined Mongo URI: ${mongoUri}`);
         }
 
+        // Initialize MongoDB client and other dependencies
         this.dbClient = new MongoClient(mongoUri, { useUnifiedTopology: true });
         this.dbName = systemConfig.getMongoDbName();
         this.privateKeyCollection = "private_keys";
@@ -34,7 +33,7 @@ class WalletManager {
     }
 
     /**
-     * Connect to the MongoDB database
+     * Connect to the MongoDB database.
      */
     async connectToDatabase() {
         try {
@@ -47,17 +46,17 @@ class WalletManager {
     }
 
     /**
-     * Close the MongoDB client
+     * Close the MongoDB database connection.
      */
     async close() {
         await this.dbClient.close();
-        console.log("MongoDB connection closed.");
+        console.log("Closed MongoDB connection.");
     }
 
     /**
-     * Store private keys in the database
-     * @param {string} userName - The username
-     * @param {Array} generatedWallets - The generated wallets
+     * Store encrypted private keys for the user in MongoDB.
+     * @param {string} userName - User's name.
+     * @param {Array} generatedWallets - Array of wallet details.
      */
     async storePrivateKeys(userName, generatedWallets) {
         try {
@@ -81,15 +80,15 @@ class WalletManager {
     }
 
     /**
-     * Generate wallets for specified networks
-     * @param {string} user_name - The username
-     * @param {string} wallet_address - The wallet address
-     * @param {Array} networks - The networks to generate wallets for
-     * @returns {Array} - Array of generated wallets
+     * Generate wallets for specified networks and store them in MongoDB.
+     * @param {string} userName - User's name.
+     * @param {string} walletAddress - User's primary wallet address.
+     * @param {Array} networks - Array of network names (default: ["Base", "DAG", "ETH", "BNB", "AVAX"]).
+     * @returns {Array} - Generated wallet details.
      */
-    async generateWalletsForNetworks(user_name, wallet_address, networks = ["Base", "DAG", "ETH", "BNB", "AVAX"]) {
-        if (!user_name || !wallet_address) {
-            throw new Error("Invalid input: user_name and wallet_address are required.");
+    async generateWalletsForNetworks(userName, walletAddress, networks = ["Base", "DAG", "ETH", "BNB", "AVAX"]) {
+        if (!userName || !walletAddress) {
+            throw new Error("Invalid input: userName and walletAddress are required.");
         }
         if (!Array.isArray(networks) || networks.length === 0) {
             throw new Error("Invalid input: networks must be a non-empty array.");
@@ -101,29 +100,25 @@ class WalletManager {
                 const wallet = await this._generateWalletForNetwork(network);
                 if (wallet) {
                     generatedWallets.push(wallet);
-                    console.log(`Generated wallet for network ${network} for user: ${user_name}`);
+                    console.log(`Generated wallet for network ${network} for user: ${userName}`);
                 }
             } catch (error) {
                 console.warn(`Failed to generate wallet for network ${network}:`, error.message);
             }
         }
 
-        // Store private keys and perform additional actions
-        await this.storePrivateKeys(user_name, generatedWallets);
-        await this.addUser.addNewUser(user_name, generatedWallets, wallet_address);
+        await this.storePrivateKeys(userName, generatedWallets);
+        await this.addUser.addNewUser(userName, generatedWallets, walletAddress);
 
-        const walletInitializer = new WalletInitializer(user_name);
-        await walletInitializer.initializeWallets(generatedWallets);
-
-        await this.qrCodeManager.generateQRCodeForWallets(user_name, generatedWallets);
+        await this.qrCodeManager.generateQRCodeForWallets(userName, generatedWallets);
 
         return generatedWallets;
     }
 
     /**
-     * Internal helper to generate wallet for a specific network
-     * @param {string} network - The network key
-     * @returns {Object} - Generated wallet
+     * Generate a wallet for a specific network.
+     * @param {string} network - Network name.
+     * @returns {Object} - Wallet details (network, address, private_key).
      */
     async _generateWalletForNetwork(network) {
         switch (network) {
