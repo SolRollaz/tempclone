@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import SystemConfig from "../systemConfig.js"; // Import SystemConfig
 
 console.log("Ethers Module:", ethers);
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
 
 
 class WalletInitializer {
