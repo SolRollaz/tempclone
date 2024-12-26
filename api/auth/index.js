@@ -32,5 +32,7 @@ const PORT = process.env.PORT || 3000; // Use environment variable or default to
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Authentication API running at http://localhost:${PORT}/hpmx_sandbox/Authentication`);
+    console.log(`Authentication API listening on http://127.0.0.1:${PORT}/api/auth`);
+    console.log(`Public access via Nginx at https://hyprmtrx.xyz/api/auth`);
+
 });
