@@ -1,10 +1,15 @@
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 class QRCodeManager {
     constructor() {
-        // Set the QR code directory to /QR_Codes (relative to project root)
+        // Resolve the current directory using `import.meta.url`
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+
+        // Set the QR code directory relative to the project root
         this.qrCodeDir = path.join(__dirname, "..", "QR_Codes");
 
         // Ensure the QR_Codes directory exists
@@ -17,6 +22,8 @@ class QRCodeManager {
     /**
      * Parses token details from a file name using the format:
      * TokenSymbol_NetworkCode_ContractAddress.png
+     * @param {string} fileName - The file name to parse.
+     * @returns {Object} - Extracted token details.
      */
     parseTokenDetailsFromFileName(fileName) {
         const match = fileName.match(/^([A-Za-z0-9]+)_([A-Za-z0-9]+)_([A-Za-z0-9]+)\.png$/);
@@ -29,6 +36,7 @@ class QRCodeManager {
 
     /**
      * Ensures the QR code directory exists.
+     * Creates the directory if it does not exist.
      */
     async ensureQRCodeDirectory() {
         try {
