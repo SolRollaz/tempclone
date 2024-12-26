@@ -1,4 +1,7 @@
-// Log loaded environment variables for debugging
+import { JsonRpcProvider } from "ethers";
+import 'dotenv/config'; // Load environment variables
+
+// Debug: Log loaded environment variables
 console.log("Loaded Environment Variables:", {
     RPC_URL_ETHEREUM: process.env.RPC_URL_ETHEREUM,
     RPC_URL_BNB: process.env.RPC_URL_BNB,
@@ -7,10 +10,8 @@ console.log("Loaded Environment Variables:", {
     RPC_URL_DAG: process.env.RPC_URL_DAG,
     MONGO_URI: process.env.MONGO_URI,
     MONGO_DB_NAME: process.env.MONGO_DB_NAME,
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
 });
-
-import { JsonRpcProvider } from "ethers"; // Import only JsonRpcProvider
-console.log("Testing JsonRpcProvider import:", JsonRpcProvider);
 
 class SystemConfig {
     constructor() {
@@ -43,10 +44,10 @@ class SystemConfig {
             },
         };
 
-        // MongoDB config from environment
+        // MongoDB configuration from environment
         this.mongoConfig = {
-            uri: process.env.MONGO_URI || "mongodb://localhost:27017/hyprmtrx", // Default Mongo URI
-            dbName: process.env.MONGO_DB_NAME || "hyprmtrx", // Default DB name
+            uri: process.env.MONGO_URI || "mongodb://localhost:27017/admin", // Default Mongo URI
+            dbName: process.env.MONGO_DB_NAME || "admin", // Default DB name
         };
 
         // Validate Mongo URI
@@ -54,7 +55,12 @@ class SystemConfig {
             throw new Error(`Invalid MongoDB URI: ${this.mongoConfig.uri}`);
         }
 
-        // Initialize providers for each network
+        // Validate Encryption Key
+        if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length !== 64) {
+            console.warn("ENCRYPTION_KEY is missing or invalid (not 64 characters). This may cause errors.");
+        }
+
+        // Initialize blockchain providers
         this.providers = this.initializeProviders();
     }
 
@@ -65,15 +71,10 @@ class SystemConfig {
     initializeProviders() {
         const providers = {};
         for (const [key, config] of Object.entries(this.networks)) {
-            console.log(`Network: ${key}, RPC URL: ${config.rpcUrl}`);
-            if (!config.rpcUrl) {
-                console.error(`RPC URL missing or invalid for network: ${key}`);
-                continue;
-            }
+            console.log(`Initializing provider for ${key} with RPC URL: ${config.rpcUrl}`);
             try {
-                const provider = new JsonRpcProvider(config.rpcUrl);
-                providers[key] = provider;
-                console.log(`Provider for ${key} initialized:`, provider);
+                providers[key] = new JsonRpcProvider(config.rpcUrl);
+                console.log(`Provider for ${key} initialized successfully.`);
             } catch (error) {
                 console.error(`Failed to initialize provider for ${key}:`, error.message);
             }
@@ -103,7 +104,7 @@ class SystemConfig {
      * @returns {Object} - Network configuration.
      */
     getNetworkConfig(network) {
-        console.log(`Fetching config for network: ${network}`);
+        console.log(`Fetching configuration for network: ${network}`);
         if (!this.networks[network]) {
             throw new Error(`Unsupported network: ${network}`);
         }
@@ -113,7 +114,7 @@ class SystemConfig {
     /**
      * Get the provider for a specific network.
      * @param {string} network - The network key (e.g., 'ETH', 'BNB').
-     * @returns {Object} - ethers.js provider.
+     * @returns {JsonRpcProvider} - ethers.js provider instance.
      */
     getProvider(network) {
         const provider = this.providers[network];
@@ -144,7 +145,7 @@ class SystemConfig {
     /**
      * Validate if a network is supported.
      * @param {string} network - The network key to validate.
-     * @returns {boolean} - True if supported, false otherwise.
+     * @returns {boolean} - True if the network is supported.
      */
     isNetworkSupported(network) {
         return this.networks.hasOwnProperty(network);
