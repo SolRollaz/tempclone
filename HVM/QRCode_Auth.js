@@ -7,9 +7,6 @@ import qrCode from "qrcode"; // QR code generation library
 import fs from "fs";
 import path from "path";
 import WalletManager from "./WalletManager.js"; // Import WalletManager to generate internal wallets
-console.log("Ethers Module:", ethers);
-const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
-
 
 class QR_Code_Auth {
     constructor() {
@@ -36,6 +33,11 @@ class QR_Code_Auth {
     // Process the QR code authentication after successful wallet authentication
     async processQRCodeAuth(game_name, user_data, auth_type) {
         try {
+            // Validate user data fields
+            if (!user_data || !user_data.DAG || !user_data.wallet_address || !user_data.signature) {
+                throw new Error("Invalid user data. Missing required fields: DAG, wallet_address, or signature.");
+            }
+
             // 1. Authenticate the wallet based on the wallet type (DAG or Metamask)
             const isAuthenticated = await this.authenticateWallet(auth_type, user_data);
             if (!isAuthenticated) {
@@ -67,7 +69,7 @@ class QR_Code_Auth {
                 const message = `Sign this message to authenticate with HyperMatrix: ${user_data.wallet_address} - ${Date.now()}`;
                 return await this.authenticateWithMetamask(message, user_data.signature, user_data.wallet_address);
             }
-            throw new Error("Unsupported authentication type.");
+            throw new Error("Unsupported authentication type: " + auth_type);
         } catch (error) {
             console.error("Error during wallet authentication:", error.message);
             return false;
