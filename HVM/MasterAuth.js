@@ -26,7 +26,7 @@ class MasterAuth {
         this.authValidator = new AuthValidator(this.systemConfig);
         this.walletManager = new WalletManager(this.systemConfig);
         this.qrCodeManager = new QRCodeManager();
-        this.jwtManager = new JWTManager(this.client, this.dbName); // Pass MongoClient and DB name
+        this.jwtManager = new JWTManager(this.client, this.dbName);
         this.sendBalances = new Send_Balances(this.systemConfig);
     }
 
@@ -40,21 +40,48 @@ class MasterAuth {
 
     /**
      * Process an authentication request.
+     * @param {string} user_name - The user's name.
+     * @param {string} game_name - The name of the game.
+     * @param {string} auth_type - The authentication type (e.g., 'metamask').
+     * @param {string} wallet_address - The user's wallet address.
      */
-    async processAuthRequest(game_key, user_name, game_name, auth_type, user_data) {
+    async processAuthRequest(user_name, game_name, auth_type, wallet_address) {
+        // Validate parameters
+        if (!user_name || typeof user_name !== "string") {
+            throw new Error("Invalid or missing user_name.");
+        }
+        if (!game_name || typeof game_name !== "string") {
+            throw new Error("Invalid or missing game_name.");
+        }
+        if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
+            throw new Error("Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.");
+        }
+        if (!wallet_address || typeof wallet_address !== "string") {
+            throw new Error("Invalid or missing wallet_address.");
+        }
+
         try {
+            // Check if the user already exists in the database
             const userExists = await this.checkIfUsernameExists(user_name);
-            let token;
 
             if (userExists) {
-                // User already registered, generate a player token
-                token = await this.jwtManager.generateToken(user_name, user_data.auth_wallets, game_name);
-                await this.sendBalances.sendBalances(user_data.wallet_address, user_data.auth_wallets, game_name);
-                return { status: "success", message: "User already registered.", token };
+                // User already exists, generate a token
+                const token = await this.jwtManager.generateToken(user_name, wallet_address, game_name);
+                await this.sendBalances.sendBalances(wallet_address, userExists.auth_wallets, game_name);
+
+                return {
+                    status: "success",
+                    message: "User already registered.",
+                    token,
+                };
             } else {
-                // User not registered, prompt for wallet authentication
-                const message = this.generateAuthMessage(user_data.wallet_address);
-                return { status: "success", message: "Please sign this message from your wallet.", data: { message } };
+                // New user, request wallet authentication
+                const authMessage = this.generateAuthMessage(wallet_address);
+                return {
+                    status: "success",
+                    message: "Please sign this message from your wallet.",
+                    data: { message: authMessage },
+                };
             }
         } catch (error) {
             console.error("Error processing authentication request:", {
@@ -62,6 +89,7 @@ class MasterAuth {
                 user_name,
                 game_name,
                 auth_type,
+                wallet_address,
             });
             return { status: "failure", message: "Internal server error." };
         }
@@ -69,6 +97,8 @@ class MasterAuth {
 
     /**
      * Generate a wallet authentication message.
+     * @param {string} wallet_address - The wallet address.
+     * @returns {string} - The message to be signed.
      */
     generateAuthMessage(wallet_address) {
         const timestamp = Date.now();
@@ -77,13 +107,15 @@ class MasterAuth {
 
     /**
      * Check if a username exists in the database.
+     * @param {string} user_name - The username to check.
+     * @returns {boolean} - True if the user exists, otherwise false.
      */
     async checkIfUsernameExists(user_name) {
         try {
             const db = this.client.db(this.dbName);
             const usersCollection = db.collection("users");
             const existingUser = await usersCollection.findOne({ user_name });
-            return existingUser !== null;
+            return existingUser || null;
         } catch (error) {
             console.error("Error checking if username exists:", { message: error.message, user_name });
             throw new Error("Database error.");
@@ -92,21 +124,27 @@ class MasterAuth {
 
     /**
      * Verify the signed message from the user's wallet.
+     * @param {string} wallet_address - The wallet address.
+     * @param {string} signed_message - The signed message from the wallet.
+     * @param {string} auth_type - The authentication type.
+     * @param {string} game_name - The game name.
+     * @param {string} user_name - The username.
+     * @returns {object} - The verification result.
      */
     async verifySignedMessage(wallet_address, signed_message, auth_type, game_name, user_name) {
         try {
-            // Validate wallet signature
+            // Validate the wallet signature
             const isAuthenticated = await this.authValidator.validateWallet(auth_type, wallet_address, signed_message);
             if (!isAuthenticated) {
                 return { status: "failure", message: "Wallet authentication failed. Please try again." };
             }
 
             const userExists = await this.checkIfUsernameExists(user_name);
-            let token;
 
             if (userExists) {
-                token = await this.jwtManager.generateToken(user_name, wallet_address, game_name);
+                const token = await this.jwtManager.generateToken(user_name, wallet_address, game_name);
                 await this.sendBalances.sendBalances(wallet_address, userExists.auth_wallets, game_name);
+
                 return {
                     status: "success",
                     message: `Welcome back, ${user_name}!`,
@@ -115,12 +153,12 @@ class MasterAuth {
                 };
             }
 
-            // Generate wallets for networks and register the user
+            // Register a new user
             const generatedWallets = await this.walletManager.generateWalletsForNetworks(user_name, wallet_address);
             await this.qrCodeManager.generateQRCodeForWallets(user_name, generatedWallets);
             await this.sendBalances.sendBalances(wallet_address, generatedWallets, game_name);
 
-            token = await this.jwtManager.generateToken(user_name, generatedWallets, game_name);
+            const token = await this.jwtManager.generateToken(user_name, generatedWallets, game_name);
 
             return {
                 status: "success",
