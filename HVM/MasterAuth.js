@@ -5,6 +5,8 @@ import { MongoClient } from 'mongodb'; // MongoDB import remains the same
 import JWTManager from './JWTManager.js';
 import Send_Balances from './Send_Balances.js';
 import SystemConfig from '../systemConfig.js'; // Include .js extension
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
+
 
 class MasterAuth {
     constructor() {
