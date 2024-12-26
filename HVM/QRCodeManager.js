@@ -2,7 +2,6 @@ import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
 
-
 class QRCodeManager {
     constructor() {
         // Set the QR code directory to /QR_Codes (relative to project root)
@@ -11,6 +10,7 @@ class QRCodeManager {
         // Ensure the QR_Codes directory exists
         if (!fs.existsSync(this.qrCodeDir)) {
             fs.mkdirSync(this.qrCodeDir, { recursive: true });
+            console.log(`QR_Codes directory created at: ${this.qrCodeDir}`);
         }
     }
 
@@ -24,7 +24,7 @@ class QRCodeManager {
             const [, symbol, network, contractAddress] = match;
             return { symbol, network, contractAddress };
         }
-        throw new Error("Invalid file name format for token logo.");
+        throw new Error(`Invalid file name format for token logo: ${fileName}`);
     }
 
     /**
@@ -33,6 +33,7 @@ class QRCodeManager {
     async ensureQRCodeDirectory() {
         try {
             await fs.promises.mkdir(this.qrCodeDir, { recursive: true });
+            console.log(`QR_Codes directory ensured at: ${this.qrCodeDir}`);
         } catch (error) {
             console.error("Error creating QR_Codes directory:", error.message);
             throw error;
@@ -54,7 +55,7 @@ class QRCodeManager {
         for (const wallet of wallets) {
             try {
                 if (!wallet.network || !wallet.address || !wallet.contract_address) {
-                    throw new Error("Wallet must include network, address, and contract_address.");
+                    throw new Error(`Wallet must include network, address, and contract_address. Wallet details: ${JSON.stringify(wallet)}`);
                 }
 
                 // Construct the path for the QR code file
@@ -79,12 +80,16 @@ class QRCodeManager {
                 console.log(`QR code successfully generated for wallet (Network: ${wallet.network}, Address: ${wallet.address}): ${qrCodePath}`);
                 generatedPaths.push(qrCodePath);
             } catch (error) {
-                console.error(`Error generating QR code for wallet on ${wallet.network}:`, error.message);
+                console.error(`Error generating QR code for wallet (Network: ${wallet.network}, Address: ${wallet.address}):`, error.message);
             }
         }
 
-        // Call the callback function to notify MasterAuth that QR code generation is complete
-        callback(generatedPaths);  // Pass the generated paths back to MasterAuth
+        // Validate and execute the callback function
+        if (typeof callback === "function") {
+            callback(generatedPaths); // Pass the generated paths back to MasterAuth
+        } else {
+            console.warn("Callback is not a function. Skipping callback execution.");
+        }
     }
 }
 
