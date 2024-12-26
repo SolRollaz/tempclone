@@ -1,46 +1,32 @@
-import AuthValidator from './AuthValidator.js';
-import WalletManager from './WalletManager.js';
-import QRCodeManager from './QRCodeManager.js';
-import { MongoClient } from 'mongodb'; // MongoDB import
-import JWTManager from './JWTManager.js';
-import Send_Balances from './Send_Balances.js';
-import SystemConfig from '../systemConfig.js'; // Ensure .js extension
+import AuthValidator from "./AuthValidator.js";
+import WalletManager from "./WalletManager.js";
+import QRCodeManager from "./QRCodeManager.js";
+import { MongoClient } from "mongodb";
+import JWTManager from "./JWTManager.js";
+import Send_Balances from "./Send_Balances.js";
+import SystemConfig from "../systemConfig.js";
 
 class MasterAuth {
-    constructor() {
-        // Initialize SystemConfig
-        this.systemConfig = new SystemConfig();
-
-        // Extract MongoDB configurations
-        const mongoUri = this.systemConfig.getMongoUri();
-        const dbName = this.systemConfig.getMongoDbName();
-
-        // Validate MongoDB configurations
-        if (!mongoUri) {
-            throw new Error("MongoDB URI is undefined or invalid.");
+    constructor(client, dbName, systemConfig) {
+        if (!systemConfig) {
+            throw new Error("SystemConfig is required to initialize MasterAuth.");
         }
-
+        if (!client) {
+            throw new Error("MongoClient instance is required to initialize MasterAuth.");
+        }
         if (!dbName) {
-            throw new Error("MongoDB database name is undefined.");
+            throw new Error("Database name is required to initialize MasterAuth.");
         }
 
-        // Initialize MongoDB client
-        this.mongoDBClient = new MongoClient(mongoUri, { useUnifiedTopology: true });
+        this.client = client;
         this.dbName = dbName;
-
-        // Connect to MongoDB
-        this.mongoDBClient.connect().then(() => {
-            console.log("Successfully connected to MongoDB.");
-        }).catch((error) => {
-            console.error("Error connecting to MongoDB:", error.message);
-            throw new Error("Failed to connect to MongoDB.");
-        });
+        this.systemConfig = systemConfig;
 
         // Initialize other components with dependencies
         this.authValidator = new AuthValidator(this.systemConfig);
         this.walletManager = new WalletManager(this.systemConfig);
         this.qrCodeManager = new QRCodeManager();
-        this.jwtManager = new JWTManager(this.mongoDBClient, this.dbName); // Pass MongoDB client and DB name
+        this.jwtManager = new JWTManager(this.client, this.dbName); // Pass MongoClient and DB name
         this.sendBalances = new Send_Balances(this.systemConfig);
     }
 
@@ -48,7 +34,8 @@ class MasterAuth {
      * Close the MongoDB connection.
      */
     async close() {
-        await this.mongoDBClient.close();
+        await this.client.close();
+        console.log("MongoDB connection closed.");
     }
 
     /**
@@ -93,7 +80,7 @@ class MasterAuth {
      */
     async checkIfUsernameExists(user_name) {
         try {
-            const db = this.mongoDBClient.db(this.dbName);
+            const db = this.client.db(this.dbName);
             const usersCollection = db.collection("users");
             const existingUser = await usersCollection.findOne({ user_name });
             return existingUser !== null;
