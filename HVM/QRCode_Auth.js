@@ -5,11 +5,20 @@ import qrCode from "qrcode"; // QR code generation library
 import fs from "fs";
 import path from "path";
 import WalletManager from "./WalletManager.js"; // Import WalletManager to generate internal wallets
+import SystemConfig from "../systemConfig.js";
 
 class QR_Code_Auth {
-    constructor() {
+    constructor(client, dbName, systemConfig) {
+        if (!client || !dbName || !systemConfig) {
+            throw new Error("MongoClient, dbName, and SystemConfig are required to initialize QR_Code_Auth.");
+        }
+
+        this.client = client;
+        this.dbName = dbName;
+        this.systemConfig = systemConfig;
+
         this.walletClient = dag4.wallet; // Use `dag4.wallet` directly
-        this.walletManager = new WalletManager(); // Initialize WalletManager
+        this.walletManager = new WalletManager(systemConfig); // Initialize WalletManager with SystemConfig
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes"); // Directory for storing QR code images
 
         // Ensure the QR code directory exists
@@ -23,9 +32,10 @@ class QR_Code_Auth {
         try {
             if (!fs.existsSync(this.qrCodeDir)) {
                 fs.mkdirSync(this.qrCodeDir, { recursive: true });
+                console.log("QR code directory created.");
             }
         } catch (error) {
-            console.error("Error creating QR code directory:", error.message);
+            console.error("Error ensuring QR code directory:", error.message);
             throw error;
         }
     }
