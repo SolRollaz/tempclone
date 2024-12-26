@@ -1,10 +1,8 @@
 import dag4 from "@stardust-collective/dag4";
 import { ethers } from "ethers";
-import axios from "axios";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
-import SystemConfig from "../systemConfig.js";
 
 class QR_Code_Auth {
     constructor(client, dbName, systemConfig) {
@@ -18,7 +16,7 @@ class QR_Code_Auth {
         this.walletClient = dag4.wallet;
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
 
-        // Ensure QR code directory exists
+        // Ensure the QR code directory exists
         this.ensureQRCodeDirectory();
     }
 
@@ -63,7 +61,12 @@ class QR_Code_Auth {
             });
 
             console.log(`QR code generated and saved: ${filePath}`);
-            return { status: "success", qr_code_path: filePath, session_id: sessionId };
+            return {
+                status: "success",
+                message: "QR code generated.",
+                qr_code_path: filePath,
+                session_id: sessionId,
+            };
         } catch (error) {
             console.error("Error generating QR code:", error.message);
             return { status: "failure", message: "Failed to generate QR code." };
