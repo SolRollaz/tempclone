@@ -9,7 +9,16 @@ import SystemConfig from "../systemConfig.js"; // Import SystemConfig for better
 class Send_Balances {
     constructor() {
         this.systemConfig = new SystemConfig(); // Create an instance of SystemConfig
-        this.baseGameAPIEndpoint = this.systemConfig.getGameAPIBaseUrl(); // Get base game API URL from SystemConfig
+
+        // Ensure `getGameAPIBaseUrl` is defined in `SystemConfig`
+        if (typeof this.systemConfig.getGameAPIBaseUrl !== "function") {
+            throw new Error("SystemConfig is missing the method getGameAPIBaseUrl.");
+        }
+
+        this.baseGameAPIEndpoint = this.systemConfig.getGameAPIBaseUrl(); // Get base game API URL
+        if (!this.baseGameAPIEndpoint) {
+            throw new Error("Game API base URL is not defined in SystemConfig.");
+        }
     }
 
     /**
@@ -21,26 +30,23 @@ class Send_Balances {
      */
     async sendBalances(user_name, hyprmtrx_wallets, game_name) {
         try {
-            // Validate input parameters
             if (!user_name || !hyprmtrx_wallets || !game_name) {
-                throw new Error("Invalid input parameters: user_name, hyprmtrx_wallets, and game_name are required.");
+                throw new Error("Invalid input: user_name, hyprmtrx_wallets, and game_name are required.");
             }
 
             // Fetch balances and token logos
             const balances = await this._getWalletBalances(hyprmtrx_wallets);
             const tokenLogos = await this._getTokenLogos(hyprmtrx_wallets);
 
-            // Construct the payload
+            // Construct payload
             const gameData = {
                 user_name,
                 balances,
                 tokenLogos,
             };
 
-            // Create the game API endpoint dynamically
             const gameAPIEndpoint = `${this.baseGameAPIEndpoint}/${game_name}/auth`;
 
-            // Send the data to the game API
             const response = await axios.post(gameAPIEndpoint, gameData);
 
             console.log("Sent balances and token logos to the game:", response.data);
@@ -97,7 +103,7 @@ class Send_Balances {
      */
     async _fetchEthereumBalance(address, network) {
         try {
-            const provider = this._getProviderForNetwork(network);
+            const provider = this.systemConfig.getProvider(network); // Use `getProvider` from SystemConfig
             const balance = await provider.getBalance(address);
             return ethers.utils.formatEther(balance); // Convert from wei to ether
         } catch (error) {
@@ -121,17 +127,6 @@ class Send_Balances {
     }
 
     /**
-     * Get the appropriate provider for Ethereum-based networks.
-     */
-    _getProviderForNetwork(network) {
-        const providers = this.systemConfig.getProviders();
-        if (providers[network]) {
-            return new ethers.JsonRpcProvider(providers[network]);
-        }
-        throw new Error(`Unsupported network: ${network}`);
-    }
-
-    /**
      * Fetch token logos for provided wallets.
      */
     async _getTokenLogos(hyprmtrx_wallets) {
@@ -140,7 +135,7 @@ class Send_Balances {
             try {
                 const logoUrl = `https://constellationnetwork.io.s3-website.us-west-1.amazonaws.com/currency/v1/l1/public/${wallet.tokenSymbol}_${wallet.network}.png`;
                 const logoData = await axios.get(logoUrl, { responseType: "arraybuffer" });
-                const base64Logo = Buffer.from(logoData.data, 'binary').toString('base64');
+                const base64Logo = Buffer.from(logoData.data, "binary").toString("base64");
                 tokenLogos.push({
                     network: wallet.network,
                     logo: `data:image/png;base64,${base64Logo}`,
