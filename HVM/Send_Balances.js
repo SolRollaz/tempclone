@@ -7,6 +7,8 @@ import qrCode from "qrcode"; // QR code generation library
 import fs from "fs";
 import path from "path";
 import SystemConfig from "../systemConfig.js"; // Import SystemConfig for better configurability
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
+
 
 console.log("Ethers Module:", ethers);
 
