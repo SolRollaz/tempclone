@@ -12,34 +12,53 @@ class WalletManager {
     constructor(systemConfig) {
         this.systemConfig = systemConfig;
 
-        // Debug: Log the Mongo URI
-        console.log("SystemConfig Mongo URI:", systemConfig.mongoUrl);
+        // Debug: Log the MongoDB configuration
+        console.log("SystemConfig Mongo URI:", systemConfig.getMongoUri());
+        console.log("SystemConfig Mongo DB Name:", systemConfig.getMongoDbName());
 
         // Validate Mongo URI
-        if (!systemConfig.mongoUrl || !systemConfig.mongoUrl.startsWith("mongodb")) {
-            throw new Error(`Invalid or undefined Mongo URI: ${systemConfig.mongoUrl}`);
+        const mongoUri = systemConfig.getMongoUri();
+        if (!mongoUri || !mongoUri.startsWith("mongodb")) {
+            throw new Error(`Invalid or undefined Mongo URI: ${mongoUri}`);
         }
 
-        this.dbClient = new MongoClient(systemConfig.mongoUrl, { useUnifiedTopology: true });
-        this.dbName = systemConfig.dbName || "hyprmtrx";
+        this.dbClient = new MongoClient(mongoUri, { useUnifiedTopology: true });
+        this.dbName = systemConfig.getMongoDbName();
         this.privateKeyCollection = "private_keys";
         this.vaultHandler = new VaultHandler();
         this.addUser = new AddUser(systemConfig);
         this.qrCodeManager = new QRCodeManager();
 
         // Attempt to connect to MongoDB
-        this.dbClient.connect().then(() => {
+        this.connectToDatabase();
+    }
+
+    /**
+     * Connect to the MongoDB database
+     */
+    async connectToDatabase() {
+        try {
+            await this.dbClient.connect();
             console.log("Successfully connected to MongoDB.");
-        }).catch((error) => {
+        } catch (error) {
             console.error("Error connecting to MongoDB:", error.message);
             throw new Error("Failed to connect to MongoDB.");
-        });
+        }
     }
 
+    /**
+     * Close the MongoDB client
+     */
     async close() {
         await this.dbClient.close();
+        console.log("MongoDB connection closed.");
     }
 
+    /**
+     * Store private keys in the database
+     * @param {string} userName - The username
+     * @param {Array} generatedWallets - The generated wallets
+     */
     async storePrivateKeys(userName, generatedWallets) {
         try {
             const db = this.dbClient.db(this.dbName);
@@ -61,6 +80,13 @@ class WalletManager {
         }
     }
 
+    /**
+     * Generate wallets for specified networks
+     * @param {string} user_name - The username
+     * @param {string} wallet_address - The wallet address
+     * @param {Array} networks - The networks to generate wallets for
+     * @returns {Array} - Array of generated wallets
+     */
     async generateWalletsForNetworks(user_name, wallet_address, networks = ["Base", "DAG", "ETH", "BNB", "AVAX"]) {
         if (!user_name || !wallet_address) {
             throw new Error("Invalid input: user_name and wallet_address are required.");
@@ -82,6 +108,7 @@ class WalletManager {
             }
         }
 
+        // Store private keys and perform additional actions
         await this.storePrivateKeys(user_name, generatedWallets);
         await this.addUser.addNewUser(user_name, generatedWallets, wallet_address);
 
@@ -93,6 +120,11 @@ class WalletManager {
         return generatedWallets;
     }
 
+    /**
+     * Internal helper to generate wallet for a specific network
+     * @param {string} network - The network key
+     * @returns {Object} - Generated wallet
+     */
     async _generateWalletForNetwork(network) {
         switch (network) {
             case "Base":
