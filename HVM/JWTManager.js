@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import SystemConfig from "../systemConfig.js"; // `.js` is mandatory for local imports
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
 
 
 class JWTManager {
