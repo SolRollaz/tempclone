@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config(); // Load environment variables
+// Log loaded environment variables for debugging
 console.log("Loaded Environment Variables:", {
     RPC_URL_ETHEREUM: process.env.RPC_URL_ETHEREUM,
     RPC_URL_BNB: process.env.RPC_URL_BNB,
@@ -10,7 +9,6 @@ console.log("Loaded Environment Variables:", {
 
 import { JsonRpcProvider } from 'ethers'; // Import only JsonRpcProvider
 console.log("Testing JsonRpcProvider import:", JsonRpcProvider);
-
 
 class SystemConfig {
     constructor() {
@@ -48,7 +46,7 @@ class SystemConfig {
             uri: process.env.MONGO_URI || "mongodb://localhost:27017/hyprmtrx",  // Local fallback
             dbName: process.env.MONGO_DB_NAME || "hyprmtrx",  // Default DB name if not set
         };
-        
+
         // Initialize providers for each network
         this.providers = this.initializeProviders();
     }
@@ -58,25 +56,23 @@ class SystemConfig {
      * @returns {Object} - Providers keyed by network.
      */
     initializeProviders() {
-    const providers = {};
-    for (const [key, config] of Object.entries(this.networks)) {
-        console.log(`Network: ${key}, RPC URL: ${config.rpcUrl}`);
-        if (!config.rpcUrl) {
-            console.error(`RPC URL missing for network: ${key}`);
-            continue;
+        const providers = {};
+        for (const [key, config] of Object.entries(this.networks)) {
+            console.log(`Network: ${key}, RPC URL: ${config.rpcUrl}`);
+            if (!config.rpcUrl) {
+                console.error(`RPC URL missing for network: ${key}`);
+                continue;
+            }
+            try {
+                const provider = new JsonRpcProvider(config.rpcUrl); // Directly initialize JsonRpcProvider
+                providers[key] = provider;
+                console.log(`Provider for ${key} initialized:`, provider);
+            } catch (error) {
+                console.error(`Failed to initialize provider for ${key}:`, error.message);
+            }
         }
-        try {
-            const provider = new JsonRpcProvider(config.rpcUrl); // Directly initialize JsonRpcProvider
-            providers[key] = provider;
-            console.log(`Provider for ${key} initialized:`, provider);
-        } catch (error) {
-            console.error(`Failed to initialize provider for ${key}:`, error.message);
-        }
+        return providers;
     }
-    return providers;
-}
-
-
 
     /**
      * Get configuration for a specific network.
