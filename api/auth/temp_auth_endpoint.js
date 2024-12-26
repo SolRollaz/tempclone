@@ -1,12 +1,9 @@
 import express from "express";
 import bodyParser from "body-parser";
-import MasterAuth from "../../HVM/MasterAuth.js"; // Assuming MasterAuth is in this directory
-import QR_Code_Auth from "../../HVM/QRCode_Auth.js"; // Import QR Code Auth class
-import SystemConfig from "../../systemConfig.js"; // Centralized system configuration
+import MasterAuth from "../../HVM/MasterAuth.js";
+import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
+import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
-
-const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
-
 
 class AuthEndpoint {
     constructor() {
@@ -17,10 +14,12 @@ class AuthEndpoint {
         this.systemConfig = new SystemConfig(); // Centralized configuration class
 
         // MongoDB Configuration
-        const mongoUri = this.systemConfig.getMongoUri();
-        const dbName = this.systemConfig.getMongoDbName();
-        this.client = new MongoClient(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true });
-        this.dbName = dbName;
+        this.mongoUri = this.systemConfig.getMongoUri() || process.env.MONGO_URI; // Fallback to environment variable
+        this.dbName = this.systemConfig.getMongoDbName();
+        this.client = new MongoClient(this.mongoUri, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
 
         this.setupRoutes(); // Set up routes for authentication
     }
@@ -28,16 +27,18 @@ class AuthEndpoint {
     // Set up the /auth endpoint for authentication
     setupRoutes() {
         this.app.post("/:game_name/auth", async (req, res) => {
-            let { user_name, auth_type, user_data, qr_code } = req.body;
+            const { user_name, auth_type, user_data, qr_code } = req.body;
             const { game_name } = req.params; // Extract game_name from URL path
 
-            // If the request is a QR code request, call QR_Code_Auth
+            // Handle QR code authentication
             if (qr_code) {
                 try {
-                    // Authenticate user via QR code method
-                    const authResult = await this.qrCodeAuth.processQRCodeAuth(game_name, user_data, auth_type);
-                    res.json(authResult);
-                    return;
+                    const authResult = await this.qrCodeAuth.processQRCodeAuth(
+                        game_name,
+                        user_data,
+                        auth_type
+                    );
+                    return res.json(authResult);
                 } catch (error) {
                     console.error("Error during QR Code authentication:", error.message);
                     return res.status(500).json({
@@ -48,9 +49,7 @@ class AuthEndpoint {
             }
 
             // Generate a temporary username if not provided
-            if (!user_name) {
-                user_name = `temp_name#${Math.floor(Math.random() * 100000)}`;
-            }
+            const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
 
             // Validate required fields
             if (!auth_type || !user_data) {
@@ -71,21 +70,26 @@ class AuthEndpoint {
                 }
 
                 // Proceed with wallet authentication using MasterAuth
-                const authResult = await this.masterAuth.processAuthRequest(user_name, game_name, auth_type, user_data);
+                const authResult = await this.masterAuth.processAuthRequest(
+                    username,
+                    game_name,
+                    auth_type,
+                    user_data
+                );
 
                 if (authResult.status === "success") {
-                    res.json({
+                    return res.json({
                         status: "success",
-                        message: `Welcome ${user_name}! Authentication successful.`,
-                        token: authResult.token, // Send the JWT token
+                        message: `Welcome ${username}! Authentication successful.`,
+                        token: authResult.token,
                         walletData: authResult.walletData,
                     });
                 } else {
-                    res.status(401).json(authResult); // Return failure message from MasterAuth
+                    return res.status(401).json(authResult); // Return failure message from MasterAuth
                 }
             } catch (error) {
                 console.error("Error during authentication:", error.message);
-                res.status(500).json({
+                return res.status(500).json({
                     status: "failure",
                     message: "Internal server error during authentication.",
                 });
@@ -123,12 +127,17 @@ class AuthEndpoint {
     }
 
     /**
-     * Connect to MongoDB with connection pooling.
+     * Connect to MongoDB.
      */
     async connectToDB() {
-        if (!this.client.isConnected()) {
-            await this.client.connect();
-            console.log("Connected to MongoDB");
+        try {
+            if (!this.client.topology?.isConnected()) {
+                await this.client.connect();
+                console.log("Connected to MongoDB");
+            }
+        } catch (error) {
+            console.error("MongoDB connection error:", error.message);
+            throw error;
         }
     }
 
@@ -144,4 +153,3 @@ class AuthEndpoint {
 }
 
 export default AuthEndpoint;
-
