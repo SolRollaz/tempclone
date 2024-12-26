@@ -12,33 +12,34 @@ class AuthEndpoint {
         this.app.use(bodyParser.json());
 
         // Initialize dependencies
-        this.masterAuth = new MasterAuth();
-        this.qrCodeAuth = new QR_Code_Auth();
         this.systemConfig = new SystemConfig();
+        const mongoUri = process.env.MONGO_URI || this.systemConfig.getMongoUri();
+        const dbName = process.env.MONGO_DB_NAME || this.systemConfig.getMongoDbName();
 
-        // MongoDB Configuration
-        this.mongoUri = process.env.MONGO_URI || this.systemConfig.getMongoUri();
-        if (!this.mongoUri) {
+        if (!mongoUri) {
             throw new Error("Mongo URI is not defined. Please check your environment variables or SystemConfig.");
         }
-
-        console.log("Mongo URI being used:", this.mongoUri);
-
-        // Validate Mongo URI format
-        if (!this.mongoUri.startsWith("mongodb")) {
-            throw new Error("Invalid MongoDB URI format: " + this.mongoUri);
+        if (!dbName) {
+            throw new Error("Mongo DB Name is not defined. Please check your environment variables or SystemConfig.");
         }
 
-        this.dbName = process.env.MONGO_DB_NAME || this.systemConfig.getMongoDbName();
-        this.client = new MongoClient(this.mongoUri, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
+        this.mongoUri = mongoUri;
+        this.dbName = dbName;
+        this.client = new MongoClient(this.mongoUri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+        console.log("Mongo URI being used:", this.mongoUri);
+        console.log("Mongo DB Name being used:", this.dbName);
+
+        // Initialize other dependencies
+        this.masterAuth = new MasterAuth(this.client, this.dbName); // Pass MongoClient and dbName
+        this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName); // Pass MongoClient and dbName
 
         this.setupRoutes(); // Set up routes for authentication
     }
 
-    // Set up the /auth endpoint for authentication
+    /**
+     * Set up the /auth endpoint for authentication.
+     */
     setupRoutes() {
         this.app.post("/:game_name/auth", async (req, res) => {
             const { user_name, auth_type, user_data, qr_code } = req.body;
@@ -79,7 +80,12 @@ class AuthEndpoint {
                 }
 
                 // Proceed with wallet authentication using MasterAuth
-                const authResult = await this.masterAuth.processAuthRequest(username, game_name, auth_type, user_data);
+                const authResult = await this.masterAuth.processAuthRequest(
+                    username,
+                    game_name,
+                    auth_type,
+                    user_data
+                );
 
                 if (authResult.status === "success") {
                     return res.json({
@@ -136,7 +142,7 @@ class AuthEndpoint {
         try {
             if (!this.client.topology?.isConnected()) {
                 await this.client.connect();
-                console.log("Connected to MongoDB");
+                console.log("Connected to MongoDB.");
             }
         } catch (error) {
             console.error("MongoDB connection error:", error.message);
