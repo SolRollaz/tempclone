@@ -5,8 +5,6 @@ import { MongoClient } from 'mongodb'; // MongoDB import remains the same
 import JWTManager from './JWTManager.js';
 import Send_Balances from './Send_Balances.js';
 import SystemConfig from '../systemConfig.js'; // Include .js extension
-const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
-
 
 class MasterAuth {
     constructor() {
@@ -22,7 +20,6 @@ class MasterAuth {
     // Orchestrate all actions (authentication, wallet generation, QR code generation, etc.)
     async processAuthRequest(game_key, user_name, game_name, auth_type, user_data) {
         try {
-            // Step 1: Check if the username already exists in the database
             const userExists = await this.checkIfUsernameExists(user_name);
             let token;
 
@@ -38,7 +35,12 @@ class MasterAuth {
                 return { status: "success", message: "Please sign this message from your wallet.", data: { message } };
             }
         } catch (error) {
-            console.error("Error processing authentication request:", error.message);
+            console.error("Error processing authentication request:", {
+                message: error.message,
+                user_name,
+                game_name,
+                auth_type,
+            });
             return { status: "failure", message: "Internal server error." };
         }
     }
@@ -46,19 +48,20 @@ class MasterAuth {
     // Generate a message that the user will sign to authenticate
     generateAuthMessage(wallet_address) {
         const timestamp = Date.now();
-        const message = `Sign this message to authenticate with HyperMatrix: ${wallet_address} - ${timestamp}`;
-        return message;
+        return `Sign this message to authenticate with HyperMatrix: ${wallet_address} - ${timestamp}`;
     }
 
     // Check if the username already exists in the database
     async checkIfUsernameExists(user_name) {
-        const db = await this.mongoDBClient.connectToDB();
-        const usersCollection = db.collection("users");
-
-        // Query to check if the username exists
-        const existingUser = await usersCollection.findOne({ user_name });
-
-        return existingUser !== null;  // Return true if username exists
+        try {
+            const db = await this.mongoDBClient.connectToDB();
+            const usersCollection = db.collection("users");
+            const existingUser = await usersCollection.findOne({ user_name });
+            return existingUser !== null;
+        } catch (error) {
+            console.error("Error checking if username exists:", { message: error.message, user_name });
+            throw new Error("Database error.");
+        }
     }
 
     // Once user signs the message in their wallet, backend verifies the signature
@@ -70,14 +73,11 @@ class MasterAuth {
                 return { status: "failure", message: "Wallet authentication failed. Please try again." };
             }
 
-            // Step 2: Check if user already exists
             const userExists = await this.checkIfUsernameExists(user_name);
             let token;
 
             if (userExists) {
-                // If the user exists, generate and return a JWT token
                 token = await this.jwtManager.generateToken(user_name, wallet_address, game_name);
-                // Send the balances to the game API for the authenticated user
                 await this.sendBalances.sendBalances(wallet_address, userExists.auth_wallets, game_name);
                 return {
                     status: "success",
@@ -87,19 +87,15 @@ class MasterAuth {
                 };
             }
 
-            // Step 3: Generate new wallets (Hyprmtrx) and store them if user is not registered
-            const generatedWallets = await this.walletManager.generateHyprmtrxWallets(user_name, wallet_address);  // Pass user_name to WalletManager for registration
+            const generatedWallets = await this.walletManager.generateHyprmtrxWallets(user_name, wallet_address);
 
-            // Step 4: Generate QR codes for wallets (DAG, ETH, etc.)
             await this.qrCodeManager.generateQRCodeForWallets(wallet_address, generatedWallets);
 
-            // Step 5: Send balances and token logos to the game API
             const balanceResult = await this.sendBalances.sendBalances(wallet_address, generatedWallets, game_name);
             if (balanceResult.status === "failure") {
                 return { status: "failure", message: "Failed to send balances and logos to the game." };
             }
 
-            // Step 6: Generate JWT token for new user
             token = await this.jwtManager.generateToken(user_name, generatedWallets, game_name);
 
             return {
@@ -109,7 +105,14 @@ class MasterAuth {
                 walletData: generatedWallets,
             };
         } catch (error) {
-            console.error("Error during signature verification:", error.message);
+            console.error("Error during signature verification:", {
+                message: error.message,
+                wallet_address,
+                signed_message,
+                auth_type,
+                game_name,
+                user_name,
+            });
             return { status: "failure", message: "Internal server error during authentication." };
         }
     }
