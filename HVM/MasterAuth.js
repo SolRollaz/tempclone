@@ -4,17 +4,27 @@ import QRCodeManager from './QRCodeManager.js';
 import { MongoClient } from 'mongodb'; // MongoDB import
 import JWTManager from './JWTManager.js';
 import Send_Balances from './Send_Balances.js';
-import SystemConfig from '../systemConfig.js'; // Ensure .js extension for ES modules
+import SystemConfig from '../systemConfig.js'; // Ensure .js extension
 
 class MasterAuth {
     constructor() {
         this.systemConfig = new SystemConfig(); // Centralized configuration instance
-        this.authValidator = new AuthValidator(this.systemConfig); // Pass SystemConfig to dependent classes
-        this.walletManager = new WalletManager(this.systemConfig); // WalletManager now handles user addition
-        this.qrCodeManager = new QRCodeManager(); // QRCodeManager instance
-        this.mongoDBClient = new MongoClient(this.systemConfig.getMongoUri(), { useUnifiedTopology: true });
-        this.jwtManager = new JWTManager(); // JWTManager instance
-        this.sendBalances = new Send_Balances(this.systemConfig); // Send_Balances to send balances
+        this.authValidator = new AuthValidator(this.systemConfig);
+        this.walletManager = new WalletManager(this.systemConfig);
+        this.qrCodeManager = new QRCodeManager();
+        this.jwtManager = new JWTManager();
+        this.sendBalances = new Send_Balances(this.systemConfig);
+
+        // MongoDB setup
+        const mongoUri = this.systemConfig.getMongoUri(); // Correct method call
+        const dbName = this.systemConfig.getMongoDbName(); // Fetch database name
+
+        if (!mongoUri) {
+            throw new Error("MongoDB URI is undefined or invalid.");
+        }
+
+        this.mongoDBClient = new MongoClient(mongoUri, { useUnifiedTopology: true });
+        this.dbName = dbName;
 
         // Connect to MongoDB
         this.mongoDBClient.connect().then(() => {
@@ -35,13 +45,10 @@ class MasterAuth {
             let token;
 
             if (userExists) {
-                // User is already registered, generate a player token
                 token = await this.jwtManager.generateToken(user_name, user_data.auth_wallets, game_name);
-                // Send the balances to the game API for the authenticated user
                 await this.sendBalances.sendBalances(user_data.wallet_address, user_data.auth_wallets, game_name);
                 return { status: "success", message: "User already registered.", token };
             } else {
-                // User is not registered, proceed with wallet authentication
                 const message = this.generateAuthMessage(user_data.wallet_address);
                 return { status: "success", message: "Please sign this message from your wallet.", data: { message } };
             }
@@ -63,7 +70,7 @@ class MasterAuth {
 
     async checkIfUsernameExists(user_name) {
         try {
-            const db = this.mongoDBClient.db(this.systemConfig.getMongoDbName());
+            const db = this.mongoDBClient.db(this.dbName);
             const usersCollection = db.collection("users");
             const existingUser = await usersCollection.findOne({ user_name });
             return existingUser !== null;
@@ -75,7 +82,6 @@ class MasterAuth {
 
     async verifySignedMessage(wallet_address, signed_message, auth_type, game_name, user_name) {
         try {
-            // Validate wallet signature
             const isAuthenticated = await this.authValidator.validateWallet(auth_type, wallet_address, signed_message);
             if (!isAuthenticated) {
                 return { status: "failure", message: "Wallet authentication failed. Please try again." };
@@ -95,19 +101,15 @@ class MasterAuth {
                 };
             }
 
-            // Generate new wallets
             const generatedWallets = await this.walletManager.generateWalletsForNetworks(user_name, wallet_address);
 
-            // Generate QR codes
-            await this.qrCodeManager.generateQRCodeForWallets(user_name, generatedWallets);
+            await this.qrCodeManager.generateQRCodeForWallets(wallet_address, generatedWallets);
 
-            // Send balances to game API
             const balanceResult = await this.sendBalances.sendBalances(wallet_address, generatedWallets, game_name);
             if (balanceResult.status === "failure") {
                 return { status: "failure", message: "Failed to send balances and logos to the game." };
             }
 
-            // Generate JWT token
             token = await this.jwtManager.generateToken(user_name, generatedWallets, game_name);
 
             return {
