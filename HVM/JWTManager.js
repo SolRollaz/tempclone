@@ -1,13 +1,18 @@
 import jwt from "jsonwebtoken";
 import SystemConfig from "../systemConfig.js"; // `.js` is mandatory for local imports
-const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
-
 
 class JWTManager {
     constructor(mongoClient, dbName) {
+        if (!mongoClient) {
+            throw new Error("MongoClient instance is required to initialize JWTManager.");
+        }
+        if (!dbName) {
+            throw new Error("Database name is required to initialize JWTManager.");
+        }
+
         this.mongoClient = mongoClient;  // MongoDB client instance
         this.dbName = dbName;            // Database name
-        this.jwtSecret = "YOUR_SECURE_SECRET"; // Replace with your actual secret (can be dynamically loaded later)
+        this.jwtSecret = process.env.JWT_SECRET || "DEFAULT_SECRET"; // Load secret securely
         this.usersCollection = this.mongoClient.db(this.dbName).collection("users"); // Access the users collection
         this.systemConfig = new SystemConfig(); // Integrating SystemConfig to fetch network data
     }
@@ -20,22 +25,27 @@ class JWTManager {
      * @returns {string} - The JWT token.
      */
     async generateToken(user_name, authWallets, network) {
-        // Validate network with SystemConfig
-        const networkConfig = this.systemConfig.getNetworkConfig(network);
-        
-        // Include the network-specific feeWallet and other settings in the token payload
-        const payload = {
-            user_name,
-            authWallets,
-            networkConfig, // Adds network-specific information to the payload (feeWallet, RPC URL, etc.)
-        };
+        try {
+            // Validate network with SystemConfig
+            const networkConfig = this.systemConfig.getNetworkConfig(network);
 
-        const token = jwt.sign(payload, this.jwtSecret, { expiresIn: "1h" });
+            // Include the network-specific feeWallet and other settings in the token payload
+            const payload = {
+                user_name,
+                authWallets,
+                networkConfig, // Adds network-specific information to the payload (feeWallet, RPC URL, etc.)
+            };
 
-        // Store the token in the MongoDB users collection (optional)
-        await this.storeToken(user_name, token);
+            const token = jwt.sign(payload, this.jwtSecret, { expiresIn: "1h" });
 
-        return token;
+            // Store the token in the MongoDB users collection (optional)
+            await this.storeToken(user_name, token);
+
+            return token;
+        } catch (error) {
+            console.error("Error generating token:", { user_name, error: error.message });
+            throw new Error("Failed to generate token.");
+        }
     }
 
     /**
@@ -44,11 +54,20 @@ class JWTManager {
      * @param {string} token - The JWT token to store.
      */
     async storeToken(user_name, token) {
-        // Add the generated token to the tokens field in the user's document
-        await this.usersCollection.updateOne(
-            { user_name },
-            { $push: { tokens: token } }  // Use $push to add the token to the array
-        );
+        try {
+            const result = await this.usersCollection.updateOne(
+                { user_name },
+                { $push: { tokens: token } },  // Use $push to add the token to the array
+                { upsert: true } // Create a new document if user doesn't exist
+            );
+
+            if (result.modifiedCount === 0 && result.upsertedCount === 0) {
+                console.warn("No changes made to the user document. Verify the user exists.");
+            }
+        } catch (error) {
+            console.error("Error storing token in MongoDB:", { user_name, error: error.message });
+            throw new Error("Failed to store token in database.");
+        }
     }
 
     /**
@@ -61,7 +80,12 @@ class JWTManager {
             const decoded = jwt.verify(token, this.jwtSecret);
             return decoded;
         } catch (error) {
-            throw new Error("Invalid or expired token.");
+            if (error.name === "TokenExpiredError") {
+                console.warn("Token has expired.");
+                throw new Error("Token has expired.");
+            }
+            console.error("Invalid token:", error.message);
+            throw new Error("Invalid token.");
         }
     }
 }
