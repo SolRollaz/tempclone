@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import User from "../Schema/userSchema.js"; // Include the `.js` extension for the schema
+const mongoUri = process.env.MONGO_URI; // Use environment variable in any file
 
 
 class AddUser {
