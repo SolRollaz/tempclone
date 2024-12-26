@@ -1,9 +1,12 @@
 // Load environment variables from the .env file
-
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
 
-console.log("Loaded MONGO_URI:", process.env.MONGO_URI); // Debug log
+// Specify the path to .env explicitly
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+console.log("Loaded Mongo URI:", process.env.MONGO_URI);
+console.log("Current Working Directory:", process.cwd());
 
 
 // Import the AuthEndpoint class
