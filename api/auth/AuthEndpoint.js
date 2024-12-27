@@ -70,9 +70,8 @@ class AuthEndpoint {
    /**
      * Handle QR code generation for authentication.
      */
-   async handleQRCodeRequest(res, user_data, auth_type, game_name) {
+  async handleQRCodeRequest(res, user_data, auth_type, game_name) {
     try {
-        // Generate the QR code
         const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
 
         if (qrCodeResult.status !== "success") {
@@ -82,29 +81,30 @@ class AuthEndpoint {
 
         console.log("Generated QR Code Result:", qrCodeResult);
 
-        // Construct the URL of the generated QR code
         const qrCodePath = qrCodeResult.qr_code_path;
+
+        // Add a log to confirm the path
+        console.log("QR Code file path being checked:", qrCodePath);
 
         if (!fs.existsSync(qrCodePath)) {
             console.error("QR Code file not found at path:", qrCodePath);
             return this.sendErrorResponse(res, "QR Code file not found.", 500);
         }
 
-        const qrCodeUrl = this.getQRCodeUrl(qrCodePath);
-        console.log("QR Code URL:", qrCodeUrl);
+        const qrCodeFileName = path.basename(qrCodePath);
+        const qrCodeUrl = `https://hyprmtrx.xyz/qr-codes/${qrCodeFileName}`;
 
-        // Send the URL in the response
         return res.json({
-            status: 'success',
-            message: 'QR Code generated successfully.',
-            qr_code_url: qrCodeUrl, // Send the file URL
+            status: "success",
+            message: "QR Code generated successfully.",
+            qr_code_url: qrCodeUrl,
         });
-
     } catch (error) {
         console.error("Error generating QR code:", error.message);
         return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
     }
 }
+
 
 
     /**
