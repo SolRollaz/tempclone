@@ -14,6 +14,7 @@ class QR_Code_Auth {
         this.systemConfig = systemConfig;
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
 
+        // Initialize MetaMask SDK
         this.metaMaskSDK = new MetaMaskSDK({
             dappMetadata: {
                 name: "HyperMatrix",
@@ -57,7 +58,7 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_request_qrcode.png`);
 
             const qrCodeData = {
-                method: "eth_requestAccounts",
+                method: "wallet_scanQRCode",
                 params: [],
                 session_id: sessionId,
                 game_name,
