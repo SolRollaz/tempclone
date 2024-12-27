@@ -32,32 +32,80 @@ class AuthEndpoint {
         this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName, this.systemConfig);
     }
 
-    /**
-     * Handle incoming authentication requests.
-     */
-    async handleRequest(req, res) {
-        console.log("---- Incoming Request ----");
-        console.log("Headers:", req.headers);
-        console.log("Body:", req.body);
-        console.log("IP Address:", req.ip);
+   /**
+ * Handle incoming authentication requests.
+ */
+async handleRequest(req, res) {
+    console.log("---- Incoming Request ----");
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
+    console.log("IP Address:", req.ip);
 
-        const { user_data, auth_type, qr_code, game_name } = req.body;
+    const { user_data, auth_type, user_name, game_name, signed_message } = req.body;
 
-        try {
-            await this.connectToDB();
-
-            if (qr_code === "qr_code") {
-                // Handle QR Code generation for the user's wallet address
-                return await this.handleQRCodeRequest(res, user_data, auth_type, game_name);
-            } else {
-                console.error("Invalid request format:", req.body);
-                return this.sendErrorResponse(res, "Invalid request format.", 400);
-            }
-        } catch (error) {
-            console.error("Error handling request:", error.message);
-            return this.sendErrorResponse(res, "Internal server error.", 500);
-        }
+    // Enhanced Logging
+    if (!user_data) {
+        console.error("Missing 'user_data' in request.");
+    } else if (!/^0x[a-fA-F0-9]{40}$/.test(user_data)) {
+        console.error("Invalid Ethereum wallet address format:", user_data);
     }
+
+    if (!auth_type) {
+        console.error("Missing 'auth_type' in request.");
+    } else if (auth_type.toLowerCase() !== "metamask") {
+        console.error("Unsupported 'auth_type':", auth_type);
+    }
+
+    // Validate Input
+    if (!auth_type || typeof auth_type !== "string" || auth_type.toLowerCase() !== "metamask") {
+        return this.sendErrorResponse(res, "Invalid or missing auth_type. Must be 'metamask'.", 400);
+    }
+
+    if (!user_data || typeof user_data !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(user_data)) {
+        return this.sendErrorResponse(res, "Invalid or missing user_data. Must be a valid Ethereum wallet address.", 400);
+    }
+
+    const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
+    const game = game_name || "default";
+
+    try {
+        await this.connectToDB();
+
+        if (!signed_message) {
+            // Step 1: Request the user to sign a message
+            const authMessage = this.masterAuth.generateAuthMessage(user_data);
+            console.log("Generated auth message:", authMessage);
+
+            return res.json({
+                status: "awaiting_signature",
+                message: "Please sign the provided message with your wallet.",
+                data: { message: authMessage },
+            });
+        } else {
+            // Step 2: Verify the signed message
+            const verificationResult = await this.masterAuth.verifySignedMessage(
+                user_data,
+                signed_message,
+                auth_type,
+                game,
+                username
+            );
+
+            console.log("Verification result:", verificationResult);
+
+            if (verificationResult.status === "success") {
+                return res.json(verificationResult);
+            } else {
+                console.error("Verification failed:", verificationResult.message);
+                return this.sendErrorResponse(res, verificationResult.message, 401);
+            }
+        }
+    } catch (error) {
+        console.error("Error handling authentication request:", error.message);
+        return this.sendErrorResponse(res, "Internal server error during authentication.", 500);
+    }
+}
+
 
     /**
      * Handle QR Code generation requests.
