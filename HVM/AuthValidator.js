@@ -12,7 +12,8 @@ class AuthValidator {
                 url: "https://hyprmtrx.xyz",
             },
         });
-        this.ethereum = this.metaMaskSDK.getProvider();
+        this.ethereum = this.metaMaskSDK.getProvider(); // MetaMask SDK provider
+        console.log("MetaMaskSDK Initialized for Web3 Authentication:", this.metaMaskSDK);
     }
 
     /**
@@ -38,22 +39,34 @@ class AuthValidator {
     }
 
     /**
-     * Request MetaMask to sign a message.
+     * Create an authentication message for the user to sign.
      * @param {string} walletAddress - Wallet address of the user.
-     * @returns {object|null} - {message, signature} or null if failed.
+     * @returns {string} - Message for the user to sign.
      */
-    async requestSignature(walletAddress) {
+    createAuthenticationMessage(walletAddress) {
+        const timestamp = Date.now();
+        return `Sign this message to authenticate with HyperMatrix: ${walletAddress} - ${timestamp}`;
+    }
+
+    /**
+     * Request the MetaMask wallet to sign a message.
+     * @param {string} message - Message to be signed.
+     * @returns {object|null} - The signed message and wallet address or null if signing fails.
+     */
+    async requestSignature(message) {
         try {
-            const message = `Sign this message to authenticate with HyperMatrix: ${walletAddress} - ${Date.now()}`;
-            console.log("Requesting MetaMask signature for message:", message);
+            console.log("Requesting signature from MetaMask with message:", message);
+
+            const accounts = await this.ethereum.request({ method: "eth_requestAccounts" });
+            const walletAddress = accounts[0];
 
             const signature = await this.ethereum.request({
                 method: "personal_sign",
                 params: [message, walletAddress],
             });
 
-            console.log("Signed message received:", signature);
-            return { message, signature };
+            console.log("Signed message from MetaMask:", signature);
+            return { signature, walletAddress };
         } catch (error) {
             console.error("Error requesting signature from MetaMask:", error.message);
             return null;
@@ -61,23 +74,20 @@ class AuthValidator {
     }
 
     /**
-     * Validate the wallet by requesting a signature or verifying it.
-     * @param {string} authType - Authentication type.
+     * Centralized method to validate a wallet.
+     * @param {string} authType - Type of authentication (e.g., metamask).
      * @param {string} walletAddress - Wallet address.
      * @param {string} signature - Wallet signature.
-     * @returns {boolean} - True if validated, false otherwise.
+     * @param {string} message - Message for verification.
+     * @returns {boolean} - True if the wallet is validated, otherwise false.
      */
-    async validateWallet(authType, walletAddress, signature) {
+    async validateWallet(authType, walletAddress, signature, message) {
         try {
             if (!walletAddress) throw new Error("Wallet address is missing.");
 
             if (authType.toLowerCase() === "metamask") {
-                if (signature) {
-                    const message = `Sign this message to authenticate with HyperMatrix: ${walletAddress}`;
-                    return await this.authenticateWithMetamask(message, signature, walletAddress);
-                } else {
-                    return await this.requestSignature(walletAddress);
-                }
+                console.log(`Validating wallet with MetaMask. Wallet: ${walletAddress}`);
+                return await this.authenticateWithMetamask(message, signature, walletAddress);
             } else {
                 console.error("Unsupported authentication type:", authType);
                 return false;
