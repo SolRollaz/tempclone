@@ -1,4 +1,3 @@
-import dag4 from "@stardust-collective/dag4";
 import { ethers } from "ethers";
 import qrCode from "qrcode";
 import fs from "fs";
@@ -13,7 +12,6 @@ class QR_Code_Auth {
         this.client = client;
         this.dbName = dbName;
         this.systemConfig = systemConfig;
-        this.walletClient = dag4.wallet;
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
 
         // Ensure the QR code directory exists
@@ -36,22 +34,24 @@ class QR_Code_Auth {
     }
 
     /**
-     * Generate a QR code based on the auth_type for a session or game.
+     * Generate a QR code for MetaMask authentication.
      * @param {string} game_name - Name of the game.
-     * @param {string} auth_type - Type of authentication ("metamask" or "stargazer").
+     * @param {string} auth_type - Type of authentication ("metamask").
      * @returns {object} - QR code generation result.
      */
     async generateQRCode(game_name, auth_type) {
-        if (!auth_type || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
-            throw new Error("Invalid auth_type. Must be 'metamask' or 'stargazer'.");
+        if (!auth_type || auth_type.toLowerCase() !== "metamask") {
+            throw new Error("Invalid auth_type. Must be 'metamask'.");
         }
 
         try {
             const sessionId = `${game_name}_${auth_type}_${Date.now()}`; // Generate a unique session ID
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
 
-            // Embed specific data for the auth_type
+            // MetaMask-specific QR code content
+            const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
             const qrCodeData = {
+                message, // The message to be signed
                 session_id: sessionId,
                 game_name,
                 auth_type,
@@ -81,20 +81,23 @@ class QR_Code_Auth {
     }
 
     /**
-     * Process authentication after QR code is scanned.
-     * Wallet data must be validated during this step.
+     * Authenticate the scanned QR code using MetaMask.
      * @param {object} user_data - Wallet data for validation.
-     * @param {string} auth_type - Type of authentication ("metamask" or "stargazer").
      * @returns {object} - Authentication result.
      */
-    async authenticateQRCode(user_data, auth_type) {
+    async authenticateQRCode(user_data) {
         try {
             if (!user_data || !user_data.wallet_address || !user_data.signature) {
                 throw new Error("Missing required wallet data: wallet_address or signature.");
             }
 
-            // Authenticate the wallet based on the type
-            const isAuthenticated = await this.authenticateWallet(auth_type, user_data);
+            // Generate a message to verify
+            const { wallet_address, signature, session_id } = user_data;
+            const message = `Sign this message to authenticate with HyperMatrix: ${session_id}`;
+
+            // Authenticate the signature
+            const isAuthenticated = await this.authenticateWithMetamask(message, signature, wallet_address);
+
             if (!isAuthenticated) {
                 return { status: "failure", message: "Wallet authentication failed." };
             }
@@ -107,28 +110,7 @@ class QR_Code_Auth {
     }
 
     /**
-     * Authenticate the wallet (either Metamask or Stargazer).
-     * @param {string} auth_type - Type of authentication.
-     * @param {object} user_data - User data containing wallet addresses and signature.
-     * @returns {boolean} - True if authenticated, otherwise false.
-     */
-    async authenticateWallet(auth_type, user_data) {
-        try {
-            if (auth_type === "stargazer") {
-                return await this.walletClient.validateAddress(user_data.wallet_address); // Validate with DAG4
-            } else if (auth_type === "metamask") {
-                const message = `Sign this message to authenticate with HyperMatrix: ${user_data.wallet_address} - ${Date.now()}`;
-                return await this.authenticateWithMetamask(message, user_data.signature, user_data.wallet_address);
-            }
-            throw new Error("Unsupported authentication type: " + auth_type);
-        } catch (error) {
-            console.error("Error during wallet authentication:", error.message);
-            return false;
-        }
-    }
-
-    /**
-     * Authenticate with Metamask (signature-based verification).
+     * Authenticate with MetaMask (signature-based verification).
      * @param {string} message - Message to be signed.
      * @param {string} signature - Signature provided by the user.
      * @param {string} walletAddress - Wallet address to verify.
@@ -139,7 +121,7 @@ class QR_Code_Auth {
             const signerAddress = ethers.utils.verifyMessage(message, signature);
             return signerAddress.toLowerCase() === walletAddress.toLowerCase();
         } catch (error) {
-            console.error("Error during Metamask authentication:", error.message);
+            console.error("Error during MetaMask authentication:", error.message);
             return false;
         }
     }
