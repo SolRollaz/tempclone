@@ -4,6 +4,7 @@ import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
 import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
 import fs from "fs";
+import path from "path";
 
 class AuthEndpoint {
     constructor() {
@@ -80,21 +81,23 @@ class AuthEndpoint {
 
             console.log("Generated QR Code Result:", qrCodeResult);
 
-            // Read the QR code as a Base64 string
+            // Read the QR code as an image file
             const qrCodePath = qrCodeResult.qr_code_path;
             if (!fs.existsSync(qrCodePath)) {
                 console.error("QR Code file not found at path:", qrCodePath);
                 return this.sendErrorResponse(res, "QR Code file not found.", 500);
             }
 
-            const qrCodeBase64 = fs.readFileSync(qrCodePath, { encoding: "base64" });
+            // Send the image directly in the response
+            const fileExtension = path.extname(qrCodePath).toLowerCase();
+            const mimeType = fileExtension === '.png' ? 'image/png' : 'image/jpeg';
 
-            return res.json({
-                status: "success",
-                message: "QR code generated successfully.",
-                qr_code_base64: qrCodeBase64,
-                session_id: qrCodeResult.session_id,
-            });
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Content-Disposition', 'inline; filename="qr_code.png"');
+            
+            const qrCodeStream = fs.createReadStream(qrCodePath);
+            qrCodeStream.pipe(res); // Pipe the file content into the response
+
         } catch (error) {
             console.error("Error generating QR code:", error.message);
             return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
