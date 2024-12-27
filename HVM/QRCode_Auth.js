@@ -54,18 +54,19 @@ class QR_Code_Auth {
             }
             console.log("Generated file path for QR code:", filePath);
 
-            // Generate the message and hash
+            // Generate the message for MetaMask signing
             const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
             const hashedMessage = hashMessage(message); // Correct usage for ethers v6
 
             // MetaMask-compatible QR code content
             const qrCodeData = {
-                message,              // Human-readable message
-                hashed_message: hashedMessage, // Hashed message for MetaMask signing
-                session_id: sessionId,
-                game_name,
-                auth_type,
-                timestamp: Date.now(),
+                type: "auth_request",         // Define the QR code type
+                message,                     // Message for MetaMask signing
+                hashed_message: hashedMessage, // Pre-hashed message for verification
+                session_id: sessionId,       // Unique session ID
+                game_name,                   // Game name
+                auth_type,                   // Authentication type
+                timestamp: Date.now(),       // Timestamp
             };
 
             // Verify qrCodeData before generation
@@ -100,19 +101,21 @@ class QR_Code_Auth {
      */
     async authenticateQRCode(user_data) {
         try {
-            if (!user_data || !user_data.wallet_address || !user_data.signature) {
-                throw new Error("Missing required wallet data: wallet_address or signature.");
+            if (!user_data || !user_data.wallet_address || !user_data.signature || !user_data.session_id) {
+                throw new Error("Missing required wallet data: wallet_address, signature, or session_id.");
             }
 
             const { wallet_address, signature, session_id } = user_data;
             const message = `Sign this message to authenticate with HyperMatrix: ${session_id}`;
             const hashedMessage = hashMessage(message);
 
+            console.log("Validating signature...");
+
             // Authenticate the signature
             const isAuthenticated = await this.authenticateWithMetamask(message, signature, wallet_address);
 
             if (!isAuthenticated) {
-                return { status: "failure", message: "Wallet authentication failed." };
+                return { status: "failure", message: "Wallet authentication failed. Signature mismatch." };
             }
 
             return { status: "success", message: "Wallet authenticated successfully." };
@@ -132,6 +135,8 @@ class QR_Code_Auth {
     async authenticateWithMetamask(message, signature, walletAddress) {
         try {
             const signerAddress = verifyMessage(message, signature); // Correct usage for ethers v6
+            console.log(`Expected Wallet Address: ${walletAddress}`);
+            console.log(`Signer Wallet Address: ${signerAddress}`);
             return signerAddress.toLowerCase() === walletAddress.toLowerCase();
         } catch (error) {
             console.error("Error during MetaMask authentication:", error.message);
