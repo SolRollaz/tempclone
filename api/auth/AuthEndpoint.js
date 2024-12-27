@@ -82,21 +82,22 @@ class AuthEndpoint {
 
             console.log("Generated QR Code Result:", qrCodeResult);
 
-            // Read the QR code image file (if needed for debugging)
+            // Get the file path for the generated QR code
             const qrCodePath = qrCodeResult.qr_code_path;
+
             if (!fs.existsSync(qrCodePath)) {
                 console.error("QR Code file not found at path:", qrCodePath);
                 return this.sendErrorResponse(res, "QR Code file not found.", 500);
             }
 
-            // Convert the image file to base64 string
-            const qrCodeBase64 = await this.convertImageToBase64(qrCodePath);
+            // Construct a URL or file path to return to the client
+            const qrCodeUrl = this.getQRCodeUrl(qrCodePath);
 
-            // Return the base64-encoded string in the response
+            // Return the URL of the QR code image in the response
             return res.json({
                 status: 'success',
                 message: 'QR Code generated successfully.',
-                qr_code_base64: qrCodeBase64
+                qr_code_url: qrCodeUrl  // Send the image URL instead of base64
             });
 
         } catch (error) {
@@ -106,19 +107,15 @@ class AuthEndpoint {
     }
 
     /**
-     * Convert an image file to a base64-encoded string.
+     * Get the URL or location of the QR code image.
      */
-    async convertImageToBase64(imagePath) {
-        return new Promise((resolve, reject) => {
-            fs.readFile(imagePath, (err, data) => {
-                if (err) {
-                    reject('Error reading image file.');
-                    return;
-                }
-                const base64Image = data.toString('base64');
-                resolve(base64Image);
-            });
-        });
+    getQRCodeUrl(qrCodePath) {
+        // Assuming the server serves files from '/public/qr-codes/'
+        const qrCodeDir = path.dirname(qrCodePath); // Get the directory of the file
+        const qrCodeFileName = path.basename(qrCodePath);  // Get the file name
+        const qrCodeUrl = `/qr-codes/${qrCodeFileName}`;  // URL where the QR code is accessible
+
+        return qrCodeUrl;
     }
 
     /**
