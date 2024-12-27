@@ -1,6 +1,5 @@
 import AuthValidator from "./AuthValidator.js";
 import JWTManager from "./JWTManager.js";
-import Send_Balances from "./Send_Balances.js";
 import SystemConfig from "../systemConfig.js";
 
 class MasterAuth {
@@ -15,7 +14,6 @@ class MasterAuth {
 
         this.authValidator = new AuthValidator();
         this.jwtManager = new JWTManager(this.client, this.dbName);
-        this.sendBalances = new Send_Balances(this.systemConfig);
     }
 
     /**
@@ -29,40 +27,32 @@ class MasterAuth {
     }
 
     /**
-     * Request the user to sign a message via MetaMask.
-     * @param {string} walletAddress - The wallet address.
-     * @returns {object|null} - The signed message or null if signing fails.
-     */
-    async requestSignature(walletAddress) {
-        try {
-            const message = this.generateAuthMessage(walletAddress);
-            console.log(`Requesting MetaMask signature for wallet: ${walletAddress}`);
-            return await this.authValidator.requestSignature(message);
-        } catch (error) {
-            console.error("Error requesting signature:", error.message);
-            return null;
-        }
-    }
-
-    /**
      * Verify the signed message from the user's wallet.
      * @param {string} walletAddress - The wallet address.
      * @param {string} signedMessage - The signed message from the wallet.
      * @param {string} authType - The authentication type.
+     * @param {string} gameName - The game name.
+     * @param {string} userName - The user's name.
      * @returns {object} - The verification result.
      */
-    async verifySignedMessage(walletAddress, signedMessage, authType) {
+    async verifySignedMessage(walletAddress, signedMessage, authType, gameName, userName) {
         try {
             const message = this.generateAuthMessage(walletAddress);
             console.log(`Verifying signed message for wallet: ${walletAddress}`);
-            const isAuthenticated = await this.authValidator.validateWallet(authType, walletAddress, signedMessage, message);
 
+            const isAuthenticated = await this.authValidator.validateWallet(authType, walletAddress, signedMessage, message);
             if (!isAuthenticated) {
                 return { status: "failure", message: "Wallet authentication failed. Please try again." };
             }
 
-            console.log("Wallet successfully authenticated:", walletAddress);
-            return { status: "success", message: "Wallet successfully authenticated." };
+            const token = await this.jwtManager.generateToken(userName, walletAddress, gameName);
+            console.log("Wallet successfully authenticated and token generated:", token);
+
+            return {
+                status: "success",
+                message: "Wallet successfully authenticated.",
+                token,
+            };
         } catch (error) {
             console.error("Error verifying signed message:", error.message);
             return { status: "failure", message: "Internal server error during authentication." };
