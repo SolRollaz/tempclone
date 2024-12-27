@@ -14,7 +14,6 @@ class QR_Code_Auth {
         this.systemConfig = systemConfig;
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
 
-        // Initialize MetaMask SDK
         this.metaMaskSDK = new MetaMaskSDK({
             dappMetadata: {
                 name: "HyperMatrix",
@@ -24,13 +23,9 @@ class QR_Code_Auth {
         });
         this.ethereum = this.metaMaskSDK.getProvider();
 
-        // Ensure the QR code directory exists
         this.ensureQRCodeDirectory();
     }
 
-    /**
-     * Ensures the QR code directory exists.
-     */
     ensureQRCodeDirectory() {
         try {
             if (!fs.existsSync(this.qrCodeDir)) {
@@ -43,12 +38,6 @@ class QR_Code_Auth {
         }
     }
 
-    /**
-     * Generate a QR code for MetaMask authentication.
-     * @param {string} game_name - Name of the game.
-     * @param {string} auth_type - Type of authentication ("metamask").
-     * @returns {object} - QR code generation result.
-     */
     async generateQRCode(game_name, auth_type) {
         if (!auth_type || auth_type.toLowerCase() !== "metamask") {
             throw new Error("Invalid auth_type. Must be 'metamask'.");
@@ -57,21 +46,17 @@ class QR_Code_Auth {
         try {
             const sessionId = `${game_name}_${auth_type}_${Date.now()}`;
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
-            const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
 
+            // Minimal payload for testing
             const qrCodeData = {
                 method: "personal_sign",
                 params: [
-                    message,
-                    "Your Wallet Address", // Replace with dynamic wallet address if available
+                    `Sign this message to authenticate: ${sessionId}`,
+                    "0xYourWalletAddressHere", // Replace with test wallet address
                 ],
-                session_id: sessionId,
-                game_name,
-                auth_type,
-                timestamp: Date.now(),
             };
 
-            console.log("QR Code Data:", qrCodeData);
+            console.log("Generated QR Code Data:", qrCodeData);
 
             await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
                 color: {
@@ -94,11 +79,6 @@ class QR_Code_Auth {
         }
     }
 
-    /**
-     * Authenticate the scanned QR code using MetaMask.
-     * @param {object} user_data - Wallet data for validation.
-     * @returns {object} - Authentication result.
-     */
     async authenticateQRCode(user_data) {
         try {
             if (!user_data || !user_data.wallet_address || !user_data.signature || !user_data.session_id) {
@@ -106,7 +86,7 @@ class QR_Code_Auth {
             }
 
             const { wallet_address, signature, session_id } = user_data;
-            const message = `Sign this message to authenticate with HyperMatrix: ${session_id}`;
+            const message = `Sign this message to authenticate: ${session_id}`;
 
             console.log("Validating signature...");
             const signerAddress = this.ethereum.utils.verifyMessage(message, signature);
@@ -121,15 +101,6 @@ class QR_Code_Auth {
             console.error("Error authenticating QR code:", error.message);
             return { status: "failure", message: "Authentication failed." };
         }
-    }
-
-    /**
-     * Validate Ethereum address.
-     * @param {string} wallet_address - Ethereum wallet address to validate.
-     * @returns {boolean} - True if valid, otherwise false.
-     */
-    validateEthereumAddress(wallet_address) {
-        return /^0x[a-fA-F0-9]{40}$/.test(wallet_address);
     }
 }
 
