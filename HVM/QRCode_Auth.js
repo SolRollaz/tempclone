@@ -57,18 +57,14 @@ class QR_Code_Auth {
         try {
             const sessionId = `${game_name}_${auth_type}_${Date.now()}`;
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
-
             const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
 
-            // QR Code Data (compatible with MetaMask expectations)
             const qrCodeData = {
-                type: "auth_request",
-                dapp_metadata: {
-                    name: "HyperMatrix",
-                    description: "MetaMask Authentication",
-                    url: "https://hyprmtrx.xyz",
-                },
-                message,
+                method: "personal_sign",
+                params: [
+                    message,
+                    "Your Wallet Address", // Replace with dynamic wallet address if available
+                ],
                 session_id: sessionId,
                 game_name,
                 auth_type,
@@ -79,8 +75,8 @@ class QR_Code_Auth {
 
             await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
                 color: {
-                    dark: "#000000", // QR code dark color
-                    light: "#ffffff", // QR code light color
+                    dark: "#000000",
+                    light: "#ffffff",
                 },
             });
 
@@ -113,7 +109,7 @@ class QR_Code_Auth {
             const message = `Sign this message to authenticate with HyperMatrix: ${session_id}`;
 
             console.log("Validating signature...");
-            const signerAddress = await this.ethereum.verifyMessage(message, signature);
+            const signerAddress = this.ethereum.utils.verifyMessage(message, signature);
 
             console.log("Signer Address:", signerAddress);
             if (signerAddress.toLowerCase() !== wallet_address.toLowerCase()) {
