@@ -68,11 +68,11 @@ class QR_Code_Auth {
                     description: "MetaMask Authentication",
                     url: "https://hyprmtrx.xyz",
                 },
-                message,
-                session_id: sessionId,
-                game_name,
-                auth_type,
-                timestamp: Date.now(),
+                message,                     // Message for MetaMask signing
+                session_id: sessionId,       // Unique session ID
+                game_name,                   // Game name
+                auth_type,                   // Authentication type
+                timestamp: Date.now(),       // Timestamp
             };
 
             console.log("QR Code Data:", qrCodeData);
@@ -126,6 +126,15 @@ class QR_Code_Auth {
             console.error("Error authenticating QR code:", error.message);
             return { status: "failure", message: "Authentication failed." };
         }
+    }
+
+    /**
+     * Validate Ethereum address.
+     * @param {string} wallet_address - Ethereum wallet address to validate.
+     * @returns {boolean} - True if valid, otherwise false.
+     */
+    validateEthereumAddress(wallet_address) {
+        return /^0x[a-fA-F0-9]{40}$/.test(wallet_address);
     }
 }
 
