@@ -1,56 +1,89 @@
-import dag4 from "@stardust-collective/dag4";
+import { MetaMaskSDK } from "@metamask/sdk";
 import { ethers } from "ethers";
 import SystemConfig from "../systemConfig.js";
 
-const { wallet: dagWallet } = dag4;
-
 class AuthValidator {
     constructor() {
-        this.dagWallet = dagWallet;
         this.systemConfig = new SystemConfig();
+        this.metaMaskSDK = new MetaMaskSDK({
+            dappMetadata: {
+                name: "HyperMatrix",
+                description: "Web3 authentication via MetaMask",
+                url: "https://hyprmtrx.xyz",
+            },
+        });
+        this.ethereum = this.metaMaskSDK.getProvider(); // MetaMask SDK provider
     }
 
-    async authenticateWithDAG4(walletAddress) {
-        try {
-            if (!walletAddress) throw new Error("Wallet address is required for DAG4 authentication.");
-
-            this.dagWallet.loginWithPrivateKey(""); // Empty private key for validation
-            const isValid = this.dagWallet.validateAddress(walletAddress);
-            console.log("DAG Wallet validation result:", isValid);
-            return isValid;
-        } catch (error) {
-            console.error("Error during DAG4 authentication:", error.message);
-            return false;
-        }
-    }
-
+    /**
+     * Authenticate the wallet using MetaMask (signature-based verification).
+     * @param {string} message - Message to be signed.
+     * @param {string} signature - Wallet signature.
+     * @param {string} walletAddress - Wallet address for verification.
+     * @returns {boolean} - True if the signature is valid, otherwise false.
+     */
     async authenticateWithMetamask(message, signature, walletAddress) {
         try {
             if (!message || !signature || !walletAddress) {
-                throw new Error("Message, signature, and wallet address are required for Metamask authentication.");
+                throw new Error("Message, signature, and wallet address are required for MetaMask authentication.");
             }
 
             const signerAddress = ethers.verifyMessage(message, signature);
-            console.log("Metamask signer address:", signerAddress);
+            console.log("MetaMask signer address:", signerAddress);
             return signerAddress.toLowerCase() === walletAddress.toLowerCase();
         } catch (error) {
-            console.error("Error during Metamask authentication:", error.message);
+            console.error("Error during MetaMask authentication:", error.message);
             return false;
         }
     }
 
+    /**
+     * Create an authentication message for the user to sign.
+     * @param {string} walletAddress - Wallet address of the user.
+     * @returns {string} - Message for the user to sign.
+     */
     createAuthenticationMessage(walletAddress) {
-        return `Sign this message to authenticate with HyperMatrix: ${walletAddress} - ${Date.now()}`;
+        const timestamp = Date.now();
+        return `Sign this message to authenticate with HyperMatrix: ${walletAddress} - ${timestamp}`;
     }
 
+    /**
+     * Request the MetaMask wallet to sign a message.
+     * @param {string} message - Message to be signed.
+     * @returns {string|null} - The signed message or null if signing fails.
+     */
+    async requestSignature(message) {
+        try {
+            const accounts = await this.ethereum.request({ method: "eth_requestAccounts" });
+            const walletAddress = accounts[0];
+
+            const signature = await this.ethereum.request({
+                method: "personal_sign",
+                params: [message, walletAddress],
+            });
+
+            console.log("Signed message from MetaMask:", signature);
+            return { signature, walletAddress };
+        } catch (error) {
+            console.error("Error requesting signature from MetaMask:", error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Centralized method to validate a wallet.
+     * @param {string} authType - Type of authentication (e.g., metamask).
+     * @param {string} walletAddress - Wallet address.
+     * @param {string} signature - Wallet signature.
+     * @param {string} message - Message for verification.
+     * @returns {boolean} - True if the wallet is validated, otherwise false.
+     */
     async validateWallet(authType, walletAddress, signature, message) {
         try {
             if (!walletAddress) throw new Error("Wallet address is missing.");
 
             if (authType.toLowerCase() === "metamask") {
                 return await this.authenticateWithMetamask(message, signature, walletAddress);
-            } else if (authType.toLowerCase() === "stargazer") {
-                return await this.authenticateWithDAG4(walletAddress);
             } else {
                 console.error("Unsupported authentication type:", authType);
                 return false;
