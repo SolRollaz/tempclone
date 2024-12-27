@@ -1,10 +1,8 @@
 import express from "express";
 import bodyParser from "body-parser";
 import MasterAuth from "../../HVM/MasterAuth.js";
-import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
 import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
-import fs from "fs";
 
 class AuthEndpoint {
     constructor() {
@@ -30,101 +28,71 @@ class AuthEndpoint {
         console.log("Mongo DB Name:", this.dbName);
 
         this.masterAuth = new MasterAuth(this.client, this.dbName, this.systemConfig);
-        this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName, this.systemConfig);
     }
 
     /**
      * Handle incoming authentication requests.
      */
     async handleRequest(req, res) {
-        const { qr_code, auth_type, wallet_address, session_id } = req.body;
+        const { user_data, auth_type, user_name, game_name } = req.body;
         console.log("Raw request body received:", JSON.stringify(req.body, null, 2));
 
+        // Validate input
+        if (!auth_type || typeof auth_type !== "string" || auth_type.toLowerCase() !== "metamask") {
+            return this.sendErrorResponse(res, "Invalid or missing auth_type. Must be 'metamask'.", 400);
+        }
+
+        if (!user_data || typeof user_data !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(user_data)) {
+            return this.sendErrorResponse(res, "Invalid or missing user_data. Must be a valid Ethereum wallet address.", 400);
+        }
+
+        const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
+        const game = game_name || "default";
+
         try {
-            // Handle QR Code generation (step 1 or 2)
-            if (qr_code === "qr_code") {
-                if (!auth_type || typeof auth_type !== "string" || auth_type.toLowerCase() !== "metamask") {
-                    return this.sendErrorResponse(res, "Invalid or missing auth_type. Must be 'metamask'.", 400);
-                }
+            await this.connectToDB();
 
-                // Step 1: Generate the first QR code for wallet address retrieval
-                if (!wallet_address && !session_id) {
-                    return await this.handleAddressRequestQRCode(res, auth_type);
-                }
-
-                // Step 2: Generate the second QR code for wallet authentication
-                if (wallet_address && session_id) {
-                    return await this.handleAuthenticationQRCode(res, wallet_address, session_id);
-                }
-
-                return this.sendErrorResponse(
-                    res,
-                    "Invalid QR code request. Must include only 'auth_type' for step 1 or both 'wallet_address' and 'session_id' for step 2.",
-                    400
-                );
+            // Check if the wallet address already exists in the database
+            const walletExists = await this.checkIfWalletExists(user_data);
+            if (walletExists) {
+                return this.sendErrorResponse(res, "This wallet is already registered with another account.", 400);
             }
 
-            // Handle wallet authentication
-            if (wallet_address && session_id) {
-                return await this.handleAuthentication(res, wallet_address, session_id);
-            }
-
-            return this.sendErrorResponse(res, "Invalid request format.", 400);
-        } catch (error) {
-            console.error("Error handling request:", error.message);
-            return this.sendErrorResponse(res, "Internal server error.", 500);
-        }
-    }
-
-    /**
-     * Handle address request QR code generation (step 1).
-     */
-    async handleAddressRequestQRCode(res, auth_type) {
-        try {
-            const qrCodeResult = await this.qrCodeAuth.generateAddressRequestQRCode("default_game", auth_type);
-            console.log("Address Request QR Code Generated:", qrCodeResult);
-
-            const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
-            res.setHeader("Content-Type", "image/png");
-            return res.send(qrCodeImage);
-        } catch (error) {
-            console.error("Error generating address request QR code:", error.message);
-            return this.sendErrorResponse(res, "Failed to generate address request QR code.", 500);
-        }
-    }
-
-    /**
-     * Handle authentication QR code generation (step 2).
-     */
-    async handleAuthenticationQRCode(res, wallet_address, session_id) {
-        try {
-            const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(wallet_address, session_id);
-            console.log("Authentication QR Code Generated:", qrCodeResult);
-
-            const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
-            res.setHeader("Content-Type", "image/png");
-            return res.send(qrCodeImage);
-        } catch (error) {
-            console.error("Error generating authentication QR code:", error.message);
-            return this.sendErrorResponse(res, "Failed to generate authentication QR code.", 500);
-        }
-    }
-
-    /**
-     * Handle wallet authentication after scanning.
-     */
-    async handleAuthentication(res, wallet_address, session_id) {
-        try {
-            const authResult = await this.qrCodeAuth.authenticateWalletAddress(wallet_address, session_id);
+            // Process the authentication request
+            const authResult = await this.masterAuth.processAuthRequest(username, game, auth_type, user_data);
 
             if (authResult.status === "success") {
-                return res.json(authResult);
+                return res.json({
+                    status: "success",
+                    message: `Welcome ${username}! Authentication successful.`,
+                    token: authResult.token,
+                    walletData: authResult.walletData,
+                });
             } else {
-                return this.sendErrorResponse(res, authResult.message, 400);
+                return res.status(401).json(authResult);
             }
         } catch (error) {
-            console.error("Authentication error:", error.message);
+            console.error("Error handling authentication request:", error.message);
             return this.sendErrorResponse(res, "Internal server error during authentication.", 500);
+        }
+    }
+
+    /**
+     * Check if a wallet address already exists in the database.
+     */
+    async checkIfWalletExists(wallet_address) {
+        try {
+            const db = this.client.db(this.dbName);
+            const usersCollection = db.collection("users");
+
+            const existingUser = await usersCollection.findOne({
+                "auth_wallets.wallet_address": wallet_address,
+            });
+
+            return existingUser !== null;
+        } catch (error) {
+            console.error("Error checking wallet existence:", error.message);
+            throw error;
         }
     }
 
