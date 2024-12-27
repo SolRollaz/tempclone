@@ -48,9 +48,12 @@ class QR_Code_Auth {
             const sessionId = `${game_name}_${auth_type}_${Date.now()}`; // Generate a unique session ID
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
 
+            // Check that `filePath` is being constructed correctly
+            console.log("Generated file path for QR code:", filePath);
+
             // Generate the message and hash
             const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
-            const hashedMessage = ethers.utils.hashMessage(message);
+            const hashedMessage = ethers.utils.hashMessage(message); // Ensure ethers library is correctly imported and up-to-date
 
             // MetaMask-compatible QR code content
             const qrCodeData = {
