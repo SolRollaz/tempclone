@@ -4,7 +4,6 @@ import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
 import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
 import fs from "fs";
-import path from "path";
 
 class AuthEndpoint {
     constructor() {
@@ -13,162 +12,64 @@ class AuthEndpoint {
         const mongoUri = process.env.MONGO_URI || this.systemConfig.getMongoUri();
         const dbName = process.env.MONGO_DB_NAME || this.systemConfig.getMongoDbName();
 
-        if (!mongoUri) {
-            throw new Error("Mongo URI is not defined. Please check your environment variables or SystemConfig.");
-        }
-        if (!dbName) {
-            throw new Error("Mongo DB Name is not defined. Please check your environment variables or SystemConfig.");
+        if (!mongoUri || !dbName) {
+            throw new Error("Mongo URI or DB Name is not defined.");
         }
 
         this.mongoUri = mongoUri;
         this.dbName = dbName;
         this.client = new MongoClient(this.mongoUri, { useUnifiedTopology: true });
 
-        console.log("Mongo URI:", this.mongoUri);
-        console.log("Mongo DB Name:", this.dbName);
-
-        this.masterAuth = new MasterAuth(this.client, this.dbName, this.systemConfig);
         this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName, this.systemConfig);
     }
 
-    /**
-     * Handle incoming requests.
-     */
     async handleRequest(req, res) {
         console.log("---- Incoming Request ----");
-        console.log("Headers:", req.headers);
         console.log("Body:", req.body);
-        console.log("IP Address:", req.ip);
 
-        const { user_data, auth_type, user_name, game_name, signed_message } = req.body;
+        const { user_data, auth_type } = req.body;
 
-        if (!auth_type || typeof auth_type !== "string" || auth_type.toLowerCase() !== "metamask") {
-            return this.sendErrorResponse(res, "Invalid or missing auth_type. Must be 'metamask'.", 400);
+        if (!auth_type || auth_type.toLowerCase() !== "metamask") {
+            return res.status(400).send({ status: "failure", message: "Invalid or missing auth_type." });
         }
 
-        if (!user_data || typeof user_data !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(user_data)) {
-            return this.sendErrorResponse(res, "Invalid or missing user_data. Must be a valid Ethereum wallet address.", 400);
+        if (!user_data || !/^0x[a-fA-F0-9]{40}$/.test(user_data)) {
+            return res.status(400).send({ status: "failure", message: "Invalid or missing user_data." });
         }
-
-        const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
-        const game = game_name || "default";
 
         try {
-            await this.connectToDB();
-
-            if (!signed_message) {
-                return await this.handleQRCodeRequest(res, user_data, auth_type, game);
-            } else {
-                return await this.handleSignedMessage(res, user_data, signed_message, auth_type, username, game);
-            }
+            await this.client.connect();
+            return await this.handleQRCodeRequest(res, user_data);
         } catch (error) {
             console.error("Error handling request:", error.message);
-            return this.sendErrorResponse(res, "Internal server error.", 500);
+            res.status(500).send({ status: "failure", message: "Internal server error." });
         }
     }
 
-   /**
-     * Handle QR code generation for authentication.
-     */
-  async handleQRCodeRequest(res, user_data, auth_type, game_name) {
-    try {
-        const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
-
-        if (qrCodeResult.status !== "success") {
-            console.error("QR Code generation failed:", qrCodeResult.message);
-            return this.sendErrorResponse(res, qrCodeResult.message, 500);
-        }
-
-        console.log("Generated QR Code Result:", qrCodeResult);
-
-        const qrCodePath = qrCodeResult.qr_code_path;
-
-        // Add a log to confirm the path
-        console.log("QR Code file path being checked:", qrCodePath);
-
-        if (!fs.existsSync(qrCodePath)) {
-            console.error("QR Code file not found at path:", qrCodePath);
-            return this.sendErrorResponse(res, "QR Code file not found.", 500);
-        }
-
-        const qrCodeFileName = path.basename(qrCodePath);
-        const qrCodeUrl = `https://hyprmtrx.xyz/qr-codes/${qrCodeFileName}`;
-
-        return res.json({
-            status: "success",
-            message: "QR Code generated successfully.",
-            qr_code_url: qrCodeUrl,
-        });
-    } catch (error) {
-        console.error("Error generating QR code:", error.message);
-        return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
-    }
-}
-
-
-
-    /**
-     * Get the URL or location of the QR code image.
-     */
-    getQRCodeUrl(qrCodePath) {
-        // Assuming the server serves files from '/public/qr-codes/'
-        const qrCodeDir = path.dirname(qrCodePath); // Get the directory of the file
-        const qrCodeFileName = path.basename(qrCodePath);  // Get the file name
-        const qrCodeUrl = `/qr-codes/${qrCodeFileName}`;  // URL where the QR code is accessible
-
-        return qrCodeUrl;
-    }
-
-    /**
-     * Handle signed message verification.
-     */
-    async handleSignedMessage(res, user_data, signed_message, auth_type, user_name, game_name) {
+    async handleQRCodeRequest(res, user_data) {
         try {
-            const verificationResult = await this.masterAuth.verifySignedMessage(
-                user_data,
-                signed_message,
-                auth_type,
-                game_name,
-                user_name
-            );
+            const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
 
-            console.log("Verification Result:", verificationResult);
-
-            if (verificationResult.status === "success") {
-                return res.json(verificationResult);
-            } else {
-                return this.sendErrorResponse(res, verificationResult.message, 401);
+            if (qrCodeResult.status !== "success") {
+                return res.status(500).send({ status: "failure", message: qrCodeResult.message });
             }
-        } catch (error) {
-            console.error("Error verifying signed message:", error.message);
-            return this.sendErrorResponse(res, "Internal server error during authentication.", 500);
-        }
-    }
 
-    /**
-     * Connect to MongoDB.
-     */
-    async connectToDB() {
-        try {
-            if (!this.client.topology?.isConnected()) {
-                await this.client.connect();
-                console.log("Connected to MongoDB.");
+            const qrCodePath = qrCodeResult.qr_code_path;
+
+            if (!fs.existsSync(qrCodePath)) {
+                return res.status(500).send({ status: "failure", message: "QR Code file not found." });
             }
-        } catch (error) {
-            console.error("MongoDB connection error:", error.message);
-            throw error;
-        }
-    }
 
-    /**
-     * Send error response with a consistent structure.
-     */
-    sendErrorResponse(res, message, statusCode) {
-        console.error("Sending error response:", { message, statusCode });
-        return res.status(statusCode).json({
-            status: "failure",
-            message,
-        });
+            // Send the image file directly
+            res.setHeader("Content-Type", "image/png");
+            res.setHeader("Content-Disposition", "inline; filename=qr_code.png");
+
+            const qrStream = fs.createReadStream(qrCodePath);
+            qrStream.pipe(res);
+        } catch (error) {
+            console.error("Error generating QR code:", error.message);
+            res.status(500).send({ status: "failure", message: "Failed to generate QR code." });
+        }
     }
 }
 
