@@ -1,4 +1,4 @@
-import MetaMaskSDK from "@metamask/sdk";
+import { MetaMaskSDK } from "@metamask/sdk";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
@@ -55,7 +55,7 @@ class QR_Code_Auth {
         }
 
         try {
-            const sessionId = `${game_name}_${auth_type}_${Date.now()}`; // Unique session ID
+            const sessionId = `${game_name}_${auth_type}_${Date.now()}`;
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
 
             const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
@@ -68,16 +68,15 @@ class QR_Code_Auth {
                     description: "MetaMask Authentication",
                     url: "https://hyprmtrx.xyz",
                 },
-                message,                     // Message for MetaMask signing
-                session_id: sessionId,       // Unique session ID
-                game_name,                   // Game name
-                auth_type,                   // Authentication type
-                timestamp: Date.now(),       // Timestamp
+                message,
+                session_id: sessionId,
+                game_name,
+                auth_type,
+                timestamp: Date.now(),
             };
 
             console.log("QR Code Data:", qrCodeData);
 
-            // Generate the QR code
             await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
                 color: {
                     dark: "#000000", // QR code dark color
@@ -113,8 +112,8 @@ class QR_Code_Auth {
             const { wallet_address, signature, session_id } = user_data;
             const message = `Sign this message to authenticate with HyperMatrix: ${session_id}`;
 
-            // Authenticate using MetaMask SDK
-            const signerAddress = await this.ethereum.verifySignature(message, signature);
+            console.log("Validating signature...");
+            const signerAddress = await this.ethereum.verifyMessage(message, signature);
 
             console.log("Signer Address:", signerAddress);
             if (signerAddress.toLowerCase() !== wallet_address.toLowerCase()) {
