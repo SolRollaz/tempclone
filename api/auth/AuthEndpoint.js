@@ -76,19 +76,22 @@ class AuthEndpoint {
             const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
 
             if (qrCodeResult.status !== "success") {
+                console.error("QR Code generation failed:", qrCodeResult.message);
                 return this.sendErrorResponse(res, qrCodeResult.message, 500);
             }
 
             console.log("Generated QR Code Result:", qrCodeResult);
 
-            // Optionally return the QR code as a base64 string instead of a file
-            const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path, { encoding: "base64" });
-            return res.json({
-                status: "success",
-                message: "QR code generated successfully.",
-                qr_code_base64: qrCodeImage,
-                session_id: qrCodeResult.session_id,
-            });
+            // Stream the QR code image as a response
+            const qrCodePath = qrCodeResult.qr_code_path;
+            if (!fs.existsSync(qrCodePath)) {
+                console.error("QR Code file not found at path:", qrCodePath);
+                return this.sendErrorResponse(res, "QR Code file not found.", 500);
+            }
+
+            res.setHeader("Content-Type", "image/png");
+            const stream = fs.createReadStream(qrCodePath);
+            stream.pipe(res);
         } catch (error) {
             console.error("Error generating QR code:", error.message);
             return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
