@@ -70,41 +70,42 @@ class AuthEndpoint {
    /**
      * Handle QR code generation for authentication.
      */
-    async handleQRCodeRequest(res, user_data, auth_type, game_name) {
-        try {
-            // Generate the QR code (using the qrcode library for example)
-            const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
+   async handleQRCodeRequest(res, user_data, auth_type, game_name) {
+    try {
+        // Generate the QR code
+        const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
 
-            if (qrCodeResult.status !== "success") {
-                console.error("QR Code generation failed:", qrCodeResult.message);
-                return this.sendErrorResponse(res, qrCodeResult.message, 500);
-            }
-
-            console.log("Generated QR Code Result:", qrCodeResult);
-
-            // Get the file path for the generated QR code
-            const qrCodePath = qrCodeResult.qr_code_path;
-
-            if (!fs.existsSync(qrCodePath)) {
-                console.error("QR Code file not found at path:", qrCodePath);
-                return this.sendErrorResponse(res, "QR Code file not found.", 500);
-            }
-
-            // Construct a URL or file path to return to the client
-            const qrCodeUrl = this.getQRCodeUrl(qrCodePath);
-
-            // Return the URL of the QR code image in the response
-            return res.json({
-                status: 'success',
-                message: 'QR Code generated successfully.',
-                qr_code_url: qrCodeUrl  // Send the image URL instead of base64
-            });
-
-        } catch (error) {
-            console.error("Error generating QR code:", error.message);
-            return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
+        if (qrCodeResult.status !== "success") {
+            console.error("QR Code generation failed:", qrCodeResult.message);
+            return this.sendErrorResponse(res, qrCodeResult.message, 500);
         }
+
+        console.log("Generated QR Code Result:", qrCodeResult);
+
+        // Construct the URL of the generated QR code
+        const qrCodePath = qrCodeResult.qr_code_path;
+
+        if (!fs.existsSync(qrCodePath)) {
+            console.error("QR Code file not found at path:", qrCodePath);
+            return this.sendErrorResponse(res, "QR Code file not found.", 500);
+        }
+
+        const qrCodeUrl = this.getQRCodeUrl(qrCodePath);
+        console.log("QR Code URL:", qrCodeUrl);
+
+        // Send the URL in the response
+        return res.json({
+            status: 'success',
+            message: 'QR Code generated successfully.',
+            qr_code_url: qrCodeUrl, // Send the file URL
+        });
+
+    } catch (error) {
+        console.error("Error generating QR code:", error.message);
+        return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
     }
+}
+
 
     /**
      * Get the URL or location of the QR code image.
