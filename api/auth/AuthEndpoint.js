@@ -56,10 +56,8 @@ class AuthEndpoint {
             await this.connectToDB();
 
             if (!signed_message) {
-                // Generate and return a QR code for authentication
                 return await this.handleQRCodeRequest(res, user_data, auth_type, game);
             } else {
-                // Verify the signed message
                 return await this.handleSignedMessage(res, user_data, signed_message, auth_type, username, game);
             }
         } catch (error) {
@@ -82,16 +80,21 @@ class AuthEndpoint {
 
             console.log("Generated QR Code Result:", qrCodeResult);
 
-            // Stream the QR code image as a response
+            // Read the QR code as a Base64 string
             const qrCodePath = qrCodeResult.qr_code_path;
             if (!fs.existsSync(qrCodePath)) {
                 console.error("QR Code file not found at path:", qrCodePath);
                 return this.sendErrorResponse(res, "QR Code file not found.", 500);
             }
 
-            res.setHeader("Content-Type", "image/png");
-            const stream = fs.createReadStream(qrCodePath);
-            stream.pipe(res);
+            const qrCodeBase64 = fs.readFileSync(qrCodePath, { encoding: "base64" });
+
+            return res.json({
+                status: "success",
+                message: "QR code generated successfully.",
+                qr_code_base64: qrCodeBase64,
+                session_id: qrCodeResult.session_id,
+            });
         } catch (error) {
             console.error("Error generating QR code:", error.message);
             return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
