@@ -3,6 +3,7 @@ import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
 import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
 import fs from "fs";
+import path from "path";
 
 class AuthEndpoint {
     constructor() {
@@ -83,7 +84,7 @@ class AuthEndpoint {
             qrStream.pipe(res);
 
             qrStream.on("close", () => {
-                console.log("QR Code successfully sent to the client.");
+                console.log(`QR Code successfully sent to the client: ${qrCodePath}`);
             });
 
             qrStream.on("error", (error) => {
