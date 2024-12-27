@@ -106,6 +106,51 @@ class AuthEndpoint {
             message,
         });
     }
+
+    /**
+     * Check if a wallet address already exists in the database.
+     */
+    async checkIfWalletExists(walletAddress) {
+        try {
+            const db = this.client.db(this.dbName);
+            const usersCollection = db.collection("users");
+
+            const existingUser = await usersCollection.findOne({
+                "auth_wallets.wallet_address": walletAddress,
+            });
+
+            return existingUser !== null;
+        } catch (error) {
+            console.error("Error checking wallet existence:", error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Register a new user in the database.
+     * @param {string} userName - User's name.
+     * @param {string} walletAddress - Wallet address to associate with the user.
+     * @returns {object} - The registration result.
+     */
+    async registerNewUser(userName, walletAddress) {
+        try {
+            const db = this.client.db(this.dbName);
+            const usersCollection = db.collection("users");
+
+            const newUser = {
+                user_name: userName,
+                auth_wallets: [{ wallet_address: walletAddress, registered_at: new Date() }],
+            };
+
+            const result = await usersCollection.insertOne(newUser);
+            return result.acknowledged
+                ? { status: "success", message: "User registered successfully." }
+                : { status: "failure", message: "Failed to register the user." };
+        } catch (error) {
+            console.error("Error registering user:", error.message);
+            throw error;
+        }
+    }
 }
 
 export default AuthEndpoint;
