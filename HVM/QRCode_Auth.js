@@ -48,10 +48,14 @@ class QR_Code_Auth {
             const sessionId = `${game_name}_${auth_type}_${Date.now()}`; // Generate a unique session ID
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
 
-            // MetaMask-specific QR code content
+            // Generate the message and hash
             const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
+            const hashedMessage = ethers.utils.hashMessage(message);
+
+            // MetaMask-compatible QR code content
             const qrCodeData = {
-                message, // The message to be signed
+                message,              // Human-readable message
+                hashed_message: hashedMessage, // Hashed message for MetaMask signing
                 session_id: sessionId,
                 game_name,
                 auth_type,
@@ -91,12 +95,12 @@ class QR_Code_Auth {
                 throw new Error("Missing required wallet data: wallet_address or signature.");
             }
 
-            // Generate a message to verify
             const { wallet_address, signature, session_id } = user_data;
             const message = `Sign this message to authenticate with HyperMatrix: ${session_id}`;
+            const hashedMessage = ethers.utils.hashMessage(message);
 
             // Authenticate the signature
-            const isAuthenticated = await this.authenticateWithMetamask(message, signature, wallet_address);
+            const isAuthenticated = await this.authenticateWithMetamask(hashedMessage, signature, wallet_address);
 
             if (!isAuthenticated) {
                 return { status: "failure", message: "Wallet authentication failed." };
@@ -111,14 +115,14 @@ class QR_Code_Auth {
 
     /**
      * Authenticate with MetaMask (signature-based verification).
-     * @param {string} message - Message to be signed.
+     * @param {string} hashedMessage - Hashed message to be verified.
      * @param {string} signature - Signature provided by the user.
      * @param {string} walletAddress - Wallet address to verify.
      * @returns {boolean} - True if the signature is valid, otherwise false.
      */
-    async authenticateWithMetamask(message, signature, walletAddress) {
+    async authenticateWithMetamask(hashedMessage, signature, walletAddress) {
         try {
-            const signerAddress = ethers.utils.verifyMessage(message, signature);
+            const signerAddress = ethers.utils.verifyMessage(hashedMessage, signature);
             return signerAddress.toLowerCase() === walletAddress.toLowerCase();
         } catch (error) {
             console.error("Error during MetaMask authentication:", error.message);
