@@ -28,7 +28,7 @@ class QR_Code_Auth {
     }
 
     /**
-     * Ensures the QR code directory exists.
+     * Ensures the QR code directory exists and is writable.
      */
     ensureQRCodeDirectory() {
         try {
@@ -36,16 +36,18 @@ class QR_Code_Auth {
                 fs.mkdirSync(this.qrCodeDir, { recursive: true });
                 console.log("QR code directory created.");
             }
+            fs.accessSync(this.qrCodeDir, fs.constants.W_OK);
+            console.log("QR code directory is writable.");
         } catch (error) {
             console.error("Error ensuring QR code directory:", error.message);
-            throw error;
+            throw new Error("QR code directory is not writable or accessible.");
         }
     }
 
     /**
      * Generate a QR code for MetaMask authentication.
      * @param {string} walletAddress - The user's wallet address.
-     * @returns {object} - QR code generation result.
+     * @returns {object} - QR code generation result with a public URL.
      */
     async generateAuthenticationQRCode(walletAddress) {
         if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
@@ -53,8 +55,10 @@ class QR_Code_Auth {
         }
 
         try {
-            const sessionId = `session_${Date.now()}`;
+            const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const sessionId = `session_${uniqueId}`;
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
+            const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
             const message = `Sign this message to authenticate: ${walletAddress} - ${Date.now()}`;
             const qrCodeData = {
@@ -63,7 +67,7 @@ class QR_Code_Auth {
                 session_id: sessionId,
             };
 
-            console.log("Generated QR Code Data:", qrCodeData);
+            console.log(`[Session: ${sessionId}] Generated QR Code Data:`, qrCodeData);
 
             // Generate QR code
             await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
@@ -73,11 +77,11 @@ class QR_Code_Auth {
                 },
             });
 
-            console.log(`QR code generated and saved: ${filePath}`);
+            console.log(`[Session: ${sessionId}] QR code generated and saved: ${filePath}`);
             return {
                 status: "success",
                 message: "QR code generated successfully.",
-                qr_code_path: filePath,
+                qr_code_url: publicUrl, // Return public URL for the client
                 session_id: sessionId,
             };
         } catch (error) {
