@@ -1,4 +1,4 @@
-import { hashMessage, verifyMessage } from "ethers";
+import MetaMaskSDK from "@metamask/sdk";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
@@ -13,6 +13,16 @@ class QR_Code_Auth {
         this.dbName = dbName;
         this.systemConfig = systemConfig;
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
+
+        // Initialize MetaMask SDK
+        this.metaMaskSDK = new MetaMaskSDK({
+            dappMetadata: {
+                name: "HyperMatrix",
+                description: "Authentication with MetaMask via HyperMatrix",
+                url: "https://hyprmtrx.xyz",
+            },
+        });
+        this.ethereum = this.metaMaskSDK.getProvider();
 
         // Ensure the QR code directory exists
         this.ensureQRCodeDirectory();
@@ -45,31 +55,26 @@ class QR_Code_Auth {
         }
 
         try {
-            const sessionId = `${game_name}_${auth_type}_${Date.now()}`; // Generate a unique session ID
+            const sessionId = `${game_name}_${auth_type}_${Date.now()}`; // Unique session ID
             const filePath = path.join(this.qrCodeDir, `${sessionId}_qrcode.png`);
 
-            // Verify filePath construction
-            if (!filePath || typeof filePath !== "string") {
-                throw new Error("File path is invalid or undefined.");
-            }
-            console.log("Generated file path for QR code:", filePath);
-
-            // Generate the message for MetaMask signing
             const message = `Sign this message to authenticate with HyperMatrix: ${sessionId}`;
-            const hashedMessage = hashMessage(message); // Correct usage for ethers v6
 
-            // MetaMask-compatible QR code content
+            // QR Code Data (compatible with MetaMask expectations)
             const qrCodeData = {
-                type: "auth_request",         // Define the QR code type
-                message,                     // Message for MetaMask signing
-                hashed_message: hashedMessage, // Pre-hashed message for verification
-                session_id: sessionId,       // Unique session ID
-                game_name,                   // Game name
-                auth_type,                   // Authentication type
-                timestamp: Date.now(),       // Timestamp
+                type: "auth_request",
+                dapp_metadata: {
+                    name: "HyperMatrix",
+                    description: "MetaMask Authentication",
+                    url: "https://hyprmtrx.xyz",
+                },
+                message,
+                session_id: sessionId,
+                game_name,
+                auth_type,
+                timestamp: Date.now(),
             };
 
-            // Verify qrCodeData before generation
             console.log("QR Code Data:", qrCodeData);
 
             // Generate the QR code
@@ -107,14 +112,12 @@ class QR_Code_Auth {
 
             const { wallet_address, signature, session_id } = user_data;
             const message = `Sign this message to authenticate with HyperMatrix: ${session_id}`;
-            const hashedMessage = hashMessage(message);
 
-            console.log("Validating signature...");
+            // Authenticate using MetaMask SDK
+            const signerAddress = await this.ethereum.verifySignature(message, signature);
 
-            // Authenticate the signature
-            const isAuthenticated = await this.authenticateWithMetamask(message, signature, wallet_address);
-
-            if (!isAuthenticated) {
+            console.log("Signer Address:", signerAddress);
+            if (signerAddress.toLowerCase() !== wallet_address.toLowerCase()) {
                 return { status: "failure", message: "Wallet authentication failed. Signature mismatch." };
             }
 
@@ -122,25 +125,6 @@ class QR_Code_Auth {
         } catch (error) {
             console.error("Error authenticating QR code:", error.message);
             return { status: "failure", message: "Authentication failed." };
-        }
-    }
-
-    /**
-     * Authenticate with MetaMask (signature-based verification).
-     * @param {string} message - Message to be verified.
-     * @param {string} signature - Signature provided by the user.
-     * @param {string} walletAddress - Wallet address to verify.
-     * @returns {boolean} - True if the signature is valid, otherwise false.
-     */
-    async authenticateWithMetamask(message, signature, walletAddress) {
-        try {
-            const signerAddress = verifyMessage(message, signature); // Correct usage for ethers v6
-            console.log(`Expected Wallet Address: ${walletAddress}`);
-            console.log(`Signer Wallet Address: ${signerAddress}`);
-            return signerAddress.toLowerCase() === walletAddress.toLowerCase();
-        } catch (error) {
-            console.error("Error during MetaMask authentication:", error.message);
-            return false;
         }
     }
 }
