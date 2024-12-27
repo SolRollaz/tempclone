@@ -47,45 +47,43 @@ class AuthEndpoint {
     }
 
     async handleQRCodeRequest(res, user_data) {
-        try {
-            const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
+    try {
+        const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
 
-            // Check the QR Code generation result
-            if (!qrCodeResult || qrCodeResult.status !== "success") {
-                console.error("QR Code generation failed:", qrCodeResult?.message || "Unknown error");
-                return res.status(500).send({ status: "failure", message: qrCodeResult?.message || "QR Code generation failed." });
-            }
-
-            const qrCodePath = qrCodeResult.qr_code_path;
-
-            // Validate that the path is defined
-            if (!qrCodePath) {
-                console.error("QR Code path is undefined:", qrCodeResult);
-                return res.status(500).send({ status: "failure", message: "QR Code path is undefined." });
-            }
-
-            console.log(`Attempting to stream QR Code from path: ${qrCodePath}`);
-
-            // Stream the file to the response
-            res.setHeader("Content-Type", "image/png");
-            res.setHeader("Content-Disposition", `inline; filename=${path.basename(qrCodePath)}`);
-
-            const qrStream = fs.createReadStream(qrCodePath);
-            qrStream.pipe(res);
-
-            qrStream.on("close", () => {
-                console.log(`QR Code successfully streamed to the client: ${qrCodePath}`);
-            });
-
-            qrStream.on("error", (error) => {
-                console.error("Error streaming the QR Code file:", error.message);
-                return res.status(500).send({ status: "failure", message: "Error streaming the QR Code file." });
-            });
-        } catch (error) {
-            console.error("Error generating QR code:", error.message);
-            return res.status(500).send({ status: "failure", message: "Failed to generate QR code." });
+        if (qrCodeResult.status !== "success") {
+            console.error("QR Code generation failed:", qrCodeResult.message);
+            return res.status(500).send({ status: "failure", message: qrCodeResult.message });
         }
+
+        const qrCodePath = qrCodeResult.qr_code_path; // Use the returned file path
+
+        if (!fs.existsSync(qrCodePath)) {
+            console.error("QR Code file not found at path:", qrCodePath);
+            return res.status(500).send({ status: "failure", message: "QR Code file not found." });
+        }
+
+        console.log(`Attempting to stream QR Code from path: ${qrCodePath}`);
+
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Content-Disposition", `inline; filename=${path.basename(qrCodePath)}`);
+
+        const qrStream = fs.createReadStream(qrCodePath);
+        qrStream.pipe(res);
+
+        qrStream.on("close", () => {
+            console.log(`QR Code successfully streamed to the client: ${qrCodePath}`);
+        });
+
+        qrStream.on("error", (error) => {
+            console.error("Error streaming the QR Code file:", error.message);
+            return res.status(500).send({ status: "failure", message: "Error streaming the QR Code file." });
+        });
+    } catch (error) {
+        console.error("Error generating QR code:", error.message);
+        return res.status(500).send({ status: "failure", message: "Failed to generate QR code." });
     }
+}
+
 }
 
 export default AuthEndpoint;
