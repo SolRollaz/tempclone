@@ -14,7 +14,6 @@ class QR_Code_Auth {
         this.systemConfig = systemConfig;
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
 
-        // Initialize MetaMask SDK
         this.metaMaskSDK = new MetaMaskSDK({
             dappMetadata: {
                 name: "HyperMatrix",
@@ -27,9 +26,6 @@ class QR_Code_Auth {
         this.ensureQRCodeDirectory();
     }
 
-    /**
-     * Ensures the QR code directory exists and is writable.
-     */
     ensureQRCodeDirectory() {
         try {
             if (!fs.existsSync(this.qrCodeDir)) {
@@ -44,11 +40,6 @@ class QR_Code_Auth {
         }
     }
 
-    /**
-     * Generate a QR code for MetaMask authentication.
-     * @param {string} walletAddress - The user's wallet address.
-     * @returns {object} - QR code generation result with a public URL.
-     */
     async generateAuthenticationQRCode(walletAddress) {
         if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
             throw new Error("Invalid wallet address.");
@@ -69,7 +60,6 @@ class QR_Code_Auth {
 
             console.log(`[Session: ${sessionId}] Generated QR Code Data:`, qrCodeData);
 
-            // Generate QR code
             await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
                 color: {
                     dark: "#000000",
@@ -81,7 +71,8 @@ class QR_Code_Auth {
             return {
                 status: "success",
                 message: "QR code generated successfully.",
-                qr_code_url: publicUrl, // Return public URL for the client
+                qr_code_path: filePath,
+                qr_code_url: publicUrl,
                 session_id: sessionId,
             };
         } catch (error) {
