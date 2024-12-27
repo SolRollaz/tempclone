@@ -1,8 +1,9 @@
 import express from "express";
-import bodyParser from "body-parser";
 import MasterAuth from "../../HVM/MasterAuth.js";
+import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
 import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
+import fs from "fs";
 
 class AuthEndpoint {
     constructor() {
@@ -28,6 +29,7 @@ class AuthEndpoint {
         console.log("Mongo DB Name:", this.dbName);
 
         this.masterAuth = new MasterAuth(this.client, this.dbName, this.systemConfig);
+        this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName, this.systemConfig);
     }
 
     /**
@@ -39,8 +41,28 @@ class AuthEndpoint {
         console.log("Body:", req.body);
         console.log("IP Address:", req.ip);
 
-        const { user_data, auth_type, user_name, game_name, signed_message } = req.body;
+        const { user_data, auth_type, qr_code, game_name } = req.body;
 
+        try {
+            await this.connectToDB();
+
+            if (qr_code === "qr_code") {
+                // Handle QR Code generation for the user's wallet address
+                return await this.handleQRCodeRequest(res, user_data, auth_type, game_name);
+            } else {
+                console.error("Invalid request format:", req.body);
+                return this.sendErrorResponse(res, "Invalid request format.", 400);
+            }
+        } catch (error) {
+            console.error("Error handling request:", error.message);
+            return this.sendErrorResponse(res, "Internal server error.", 500);
+        }
+    }
+
+    /**
+     * Handle QR Code generation requests.
+     */
+    async handleQRCodeRequest(res, user_data, auth_type, game_name) {
         if (!auth_type || typeof auth_type !== "string" || auth_type.toLowerCase() !== "metamask") {
             console.error("Invalid or missing auth_type:", auth_type);
             return this.sendErrorResponse(res, "Invalid or missing auth_type. Must be 'metamask'.", 400);
@@ -51,44 +73,18 @@ class AuthEndpoint {
             return this.sendErrorResponse(res, "Invalid or missing user_data. Must be a valid Ethereum wallet address.", 400);
         }
 
-        const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
-        const game = game_name || "default";
+        const game = game_name || "default_game";
 
         try {
-            await this.connectToDB();
+            const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data, game);
+            console.log("Generated QR Code Result:", qrCodeResult);
 
-            if (!signed_message) {
-                // Step 1: Request the user to sign a message
-                const authMessage = this.masterAuth.generateAuthMessage(user_data);
-                console.log("Generated auth message:", authMessage);
-
-                return res.json({
-                    status: "awaiting_signature",
-                    message: "Please sign the provided message with your wallet.",
-                    data: { message: authMessage },
-                });
-            } else {
-                // Step 2: Verify the signed message
-                const verificationResult = await this.masterAuth.verifySignedMessage(
-                    user_data,
-                    signed_message,
-                    auth_type,
-                    game,
-                    username
-                );
-
-                console.log("Verification result:", verificationResult);
-
-                if (verificationResult.status === "success") {
-                    return res.json(verificationResult);
-                } else {
-                    console.error("Verification failed:", verificationResult.message);
-                    return this.sendErrorResponse(res, verificationResult.message, 401);
-                }
-            }
+            const qrCodeImage = fs.readFileSync(qrCodeResult.qr_code_path);
+            res.setHeader("Content-Type", "image/png");
+            return res.send(qrCodeImage);
         } catch (error) {
-            console.error("Error handling authentication request:", error.message);
-            return this.sendErrorResponse(res, "Internal server error during authentication.", 500);
+            console.error("Error generating QR code:", error.message);
+            return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
         }
     }
 
