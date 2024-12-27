@@ -34,7 +34,7 @@ class AuthEndpoint {
      * Handle incoming authentication requests.
      */
     async handleRequest(req, res) {
-        const { user_data, auth_type, user_name, game_name } = req.body;
+        const { user_data, auth_type, user_name, game_name, signed_message } = req.body;
         console.log("Raw request body received:", JSON.stringify(req.body, null, 2));
 
         // Validate input
@@ -52,47 +52,33 @@ class AuthEndpoint {
         try {
             await this.connectToDB();
 
-            // Check if the wallet address already exists in the database
-            const walletExists = await this.checkIfWalletExists(user_data);
-            if (walletExists) {
-                return this.sendErrorResponse(res, "This wallet is already registered with another account.", 400);
-            }
-
-            // Process the authentication request
-            const authResult = await this.masterAuth.processAuthRequest(username, game, auth_type, user_data);
-
-            if (authResult.status === "success") {
+            if (!signed_message) {
+                // Step 1: Request the user to sign a message
+                const authMessage = this.masterAuth.generateAuthMessage(user_data);
                 return res.json({
-                    status: "success",
-                    message: `Welcome ${username}! Authentication successful.`,
-                    token: authResult.token,
-                    walletData: authResult.walletData,
+                    status: "awaiting_signature",
+                    message: "Please sign the provided message with your wallet.",
+                    data: { message: authMessage },
                 });
             } else {
-                return res.status(401).json(authResult);
+                // Step 2: Verify the signed message
+                const verificationResult = await this.masterAuth.verifySignedMessage(
+                    user_data,
+                    signed_message,
+                    auth_type,
+                    game,
+                    username
+                );
+
+                if (verificationResult.status === "success") {
+                    return res.json(verificationResult);
+                } else {
+                    return this.sendErrorResponse(res, verificationResult.message, 401);
+                }
             }
         } catch (error) {
             console.error("Error handling authentication request:", error.message);
             return this.sendErrorResponse(res, "Internal server error during authentication.", 500);
-        }
-    }
-
-    /**
-     * Check if a wallet address already exists in the database.
-     */
-    async checkIfWalletExists(wallet_address) {
-        try {
-            const db = this.client.db(this.dbName);
-            const usersCollection = db.collection("users");
-
-            const existingUser = await usersCollection.findOne({
-                "auth_wallets.wallet_address": wallet_address,
-            });
-
-            return existingUser !== null;
-        } catch (error) {
-            console.error("Error checking wallet existence:", error.message);
-            throw error;
         }
     }
 
