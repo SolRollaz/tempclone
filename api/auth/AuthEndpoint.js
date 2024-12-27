@@ -67,11 +67,12 @@ class AuthEndpoint {
         }
     }
 
-    /**
+   /**
      * Handle QR code generation for authentication.
      */
     async handleQRCodeRequest(res, user_data, auth_type, game_name) {
         try {
+            // Generate the QR code (using the qrcode library for example)
             const qrCodeResult = await this.qrCodeAuth.generateAuthenticationQRCode(user_data);
 
             if (qrCodeResult.status !== "success") {
@@ -81,27 +82,43 @@ class AuthEndpoint {
 
             console.log("Generated QR Code Result:", qrCodeResult);
 
-            // Read the QR code as an image file
+            // Read the QR code image file (if needed for debugging)
             const qrCodePath = qrCodeResult.qr_code_path;
             if (!fs.existsSync(qrCodePath)) {
                 console.error("QR Code file not found at path:", qrCodePath);
                 return this.sendErrorResponse(res, "QR Code file not found.", 500);
             }
 
-            // Send the image directly in the response
-            const fileExtension = path.extname(qrCodePath).toLowerCase();
-            const mimeType = fileExtension === '.png' ? 'image/png' : 'image/jpeg';
+            // Convert the image file to base64 string
+            const qrCodeBase64 = await this.convertImageToBase64(qrCodePath);
 
-            res.setHeader('Content-Type', mimeType);
-            res.setHeader('Content-Disposition', 'inline; filename="qr_code.png"');
-            
-            const qrCodeStream = fs.createReadStream(qrCodePath);
-            qrCodeStream.pipe(res); // Pipe the file content into the response
+            // Return the base64-encoded string in the response
+            return res.json({
+                status: 'success',
+                message: 'QR Code generated successfully.',
+                qr_code_base64: qrCodeBase64
+            });
 
         } catch (error) {
             console.error("Error generating QR code:", error.message);
             return this.sendErrorResponse(res, "Failed to generate QR code.", 500);
         }
+    }
+
+    /**
+     * Convert an image file to a base64-encoded string.
+     */
+    async convertImageToBase64(imagePath) {
+        return new Promise((resolve, reject) => {
+            fs.readFile(imagePath, (err, data) => {
+                if (err) {
+                    reject('Error reading image file.');
+                    return;
+                }
+                const base64Image = data.toString('base64');
+                resolve(base64Image);
+            });
+        });
     }
 
     /**
