@@ -40,23 +40,23 @@ class AuthEndpoint {
         const { user_name, auth_type, user_data, qr_code } = req.body;
         console.log("Raw request body received:", JSON.stringify(req.body, null, 2));
 
-        // Validate input parameters
+        // Validate `auth_type` for all requests
         if (!auth_type || typeof auth_type !== "string" || !["metamask", "stargazer"].includes(auth_type.toLowerCase())) {
             return this.sendErrorResponse(res, "Invalid or missing auth_type. Must be 'metamask' or 'stargazer'.", 400);
         }
 
+        // Handle QR Code requests
+        if (qr_code === "qr_code") {
+            return await this.handleQRCodeRequest(res, auth_type);
+        }
+
+        // Handle full authentication requests
         if (!user_data || typeof user_data !== "string" || user_data.trim() === "") {
             return this.sendErrorResponse(res, "Invalid or missing user_data. Must be a public wallet address.", 400);
         }
 
         const username = user_name || `temp_name#${Math.floor(Math.random() * 100000)}`;
 
-        // Handle QR Code generation
-        if (qr_code === "qr_code") {
-            return await this.handleQRCodeRequest(res, auth_type);
-        }
-
-        // Handle Authentication request
         try {
             const walletExists = await this.checkIfWalletExists(user_data);
             if (walletExists) {
@@ -93,6 +93,7 @@ class AuthEndpoint {
 
     /**
      * Handle QR Code requests.
+     * Allows generation of QR codes with only `auth_type` and `qr_code` specified.
      */
     async handleQRCodeRequest(res, auth_type) {
         try {
