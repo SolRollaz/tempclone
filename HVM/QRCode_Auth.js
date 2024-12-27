@@ -43,29 +43,29 @@ class QR_Code_Auth {
     }
 
     /**
-     * Generate the authentication QR code for signing.
+     * Generate a QR code for MetaMask authentication.
      * @param {string} walletAddress - The user's wallet address.
-     * @param {string} sessionId - Session ID.
      * @returns {object} - QR code generation result.
      */
-    async generateAuthenticationQRCode(walletAddress, sessionId) {
+    async generateAuthenticationQRCode(walletAddress) {
         if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
             throw new Error("Invalid wallet address.");
         }
 
         try {
+            const sessionId = `session_${Date.now()}`;
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
 
-            const message = `Sign this message to authenticate: ${sessionId}`;
+            const message = `Sign this message to authenticate: ${walletAddress} - ${Date.now()}`;
             const qrCodeData = {
                 method: "personal_sign",
                 params: [message, walletAddress],
                 session_id: sessionId,
-                timestamp: Date.now(),
             };
 
-            console.log("Generated QR Code Data (Authentication):", qrCodeData);
+            console.log("Generated QR Code Data:", qrCodeData);
 
+            // Generate QR code
             await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
                 color: {
                     dark: "#000000",
