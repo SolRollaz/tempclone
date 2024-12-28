@@ -1,5 +1,6 @@
 import { Core } from "@walletconnect/core";
 import { WalletKit } from "@reown/walletkit";
+import { createSIWEConfig } from "@reown/appkit-siwe";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
@@ -18,20 +19,14 @@ class QR_Code_Auth {
 
         this.ensureQRCodeDirectory();
 
-        // Initialize Core and WalletKit
         this.core = this.initializeCore();
         this.walletKit = null; // WalletKit will be initialized asynchronously
     }
 
     ensureQRCodeDirectory() {
-        try {
-            if (!fs.existsSync(this.qrCodeDir)) {
-                fs.mkdirSync(this.qrCodeDir, { recursive: true });
-                console.log("QR code directory created.");
-            }
-        } catch (error) {
-            console.error("Failed to create QR code directory:", error.message);
-            throw error;
+        if (!fs.existsSync(this.qrCodeDir)) {
+            fs.mkdirSync(this.qrCodeDir, { recursive: true });
+            console.log("QR code directory created.");
         }
     }
 
@@ -41,73 +36,84 @@ class QR_Code_Auth {
             projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown Cloud project ID
         });
 
-        // Add relay connection listeners
-        core.relayer.on("relayer_connect", () => {
-            console.log("Connected to relay server.");
-        });
-
-        core.relayer.on("relayer_disconnect", () => {
-            console.error("Disconnected from relay server.");
-        });
-
-        core.relayer.on("error", (error) => {
-            console.error("Relay server encountered an error:", error);
-        });
+        core.relayer.on("relayer_connect", () => console.log("Connected to relay server."));
+        core.relayer.on("relayer_disconnect", () => console.error("Disconnected from relay server."));
+        core.relayer.on("error", (error) => console.error("Relay server encountered an error:", error));
 
         return core;
     }
 
     async initializeWalletKit() {
-        if (this.walletKit) {
-            return; // WalletKit is already initialized
-        }
+        if (this.walletKit) return;
 
-        try {
-            console.log("Initializing WalletKit...");
-            this.walletKit = await WalletKit.init({
-                core: this.core,
-                metadata: {
-                    name: "hyprmtrx",
-                    description: "WEB3 Authentication via HyperMatrix",
-                    url: "https://hyprmtrx.xyz", // Use your app's actual domain
-                    icons: ["https://hyprmtrx.com/favicon.png"], // Use a valid favicon URL
-                },
-            });
+        console.log("Initializing WalletKit...");
 
-            console.log("WalletKit initialized successfully.");
-
-            // Add WalletKit event listeners
-            this.walletKit.on("session_proposal", async ({ id, params }) => {
-                console.log("Session proposal received:", params);
-
-                const requiredNamespaces = {
-                    eip155: {
-                        methods: ["personal_sign", "eth_sendTransaction"], // Wallet methods
-                        chains: ["eip155:1"], // Ethereum Mainnet
-                        events: ["accountsChanged", "chainChanged"], // Blockchain events
-                    },
-                };
-
-                try {
-                    await this.walletKit.approveSession({
-                        id,
-                        namespaces: requiredNamespaces,
-                    });
-                    console.log("Session approved successfully.");
-                } catch (error) {
-                    console.error("Failed to approve session:", error.message);
+        const siweConfig = createSIWEConfig({
+            getMessageParams: async () => ({
+                domain: "hyprmtrx.xyz",
+                uri: "https://hyprmtrx.xyz", // Must match your verified domain
+                chains: [1], // Ethereum Mainnet
+                statement: "Sign in to authenticate with HyperMatrix",
+            }),
+            getNonce: async () => {
+                const response = await fetch("/nonce", { credentials: "include" });
+                if (!response.ok) {
+                    throw new Error("Failed to fetch nonce");
                 }
-            });
+                return await response.text();
+            },
+            verifyMessage: async ({ message, signature }) => {
+                const response = await fetch("/verify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message, signature }),
+                    credentials: "include",
+                });
+                return response.ok;
+            },
+            getSession: async () => {
+                const response = await fetch("/session", { credentials: "include" });
+                return response.ok ? await response.json() : null;
+            },
+        });
 
-            this.walletKit.on("proposal_expire", ({ id }) => {
-                console.warn(`Session proposal ${id} expired.`);
-            });
+        this.walletKit = await WalletKit.init({
+            core: this.core,
+            metadata: {
+                name: "hyprmtrx",
+                description: "WEB3 Authentication via HyperMatrix",
+                url: "https://hyprmtrx.xyz", // Use your app's actual domain
+                icons: ["https://hyprmtrx.com/favicon.png"], // Use a valid favicon URL
+            },
+            siweConfig,
+        });
 
-            console.log("WalletKit event listeners added.");
-        } catch (error) {
-            console.error("Failed to initialize WalletKit:", error.message);
-            throw error;
-        }
+        console.log("WalletKit initialized successfully.");
+
+        this.walletKit.on("session_proposal", async ({ id, params }) => {
+            console.log("Session proposal received:", params);
+
+            const requiredNamespaces = {
+                eip155: {
+                    methods: ["personal_sign", "eth_sendTransaction"],
+                    chains: ["eip155:1"],
+                    events: ["accountsChanged", "chainChanged"],
+                },
+            };
+
+            try {
+                await this.walletKit.approveSession({ id, namespaces: requiredNamespaces });
+                console.log("Session approved successfully.");
+            } catch (error) {
+                console.error("Failed to approve session:", error.message);
+            }
+        });
+
+        this.walletKit.on("proposal_expire", ({ id }) => {
+            console.warn(`Session proposal ${id} expired.`);
+        });
+
+        console.log("WalletKit event listeners added.");
     }
 
     async generateAuthenticationQRCode() {
@@ -120,7 +126,6 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Step 1: Generate Topic, SymKey, and Expiry
             console.log("Generating pairing details...");
             const topic = crypto.randomBytes(32).toString("hex").toLowerCase();
             const symKey = crypto.randomBytes(32).toString("hex").toLowerCase();
@@ -128,14 +133,10 @@ class QR_Code_Auth {
             const expiryTimestamp = Math.floor(Date.now() / 1000) + 600; // 10 minutes expiry
             const uri = `wc:${topic}@2?expiryTimestamp=${expiryTimestamp}&relay-protocol=${relayProtocol}&symKey=${symKey}`;
 
-            // Log the constructed URI for debugging
             console.log(`[Session: ${sessionId}] QR Code Data (URI): ${uri}`);
-
-            // Step 2: Pair with the URI
             console.log("Pairing with WalletKit...");
             await this.walletKit.pair({ uri });
 
-            // Step 3: Generate QR Code
             console.log("Generating QR Code...");
             await qrCode.toFile(filePath, uri, {
                 color: {
@@ -151,7 +152,7 @@ class QR_Code_Auth {
                 qr_code_path: filePath,
                 qr_code_url: publicUrl,
                 session_id: sessionId,
-                walletkit_uri: uri, // Include the raw URI in the response for additional verification
+                walletkit_uri: uri,
             };
         } catch (error) {
             console.error("Error generating QR code:", error.message);
