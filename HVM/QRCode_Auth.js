@@ -84,7 +84,6 @@ class QR_Code_Auth {
                     };
 
                     try {
-                        console.log("Approving session with namespaces:", requiredNamespaces);
                         await this.walletKit.approveSession({
                             id,
                             namespaces: requiredNamespaces,
