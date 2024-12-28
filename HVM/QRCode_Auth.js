@@ -44,6 +44,7 @@ class QR_Code_Auth {
                 },
             });
 
+            // Listen for session proposals
             this.walletKit.on("session_proposal", async ({ id, params }) => {
                 const approvedNamespaces = {
                     eip155: {
@@ -55,12 +56,14 @@ class QR_Code_Auth {
 
                 try {
                     await this.walletKit.approveSession({ id, namespaces: approvedNamespaces });
+                    console.log("Session approved successfully.");
                 } catch (error) {
                     console.error("Failed to approve session:", error.message);
                     await this.walletKit.rejectSession({ id, reason: "USER_REJECTED" });
                 }
             });
 
+            // Handle session requests
             this.walletKit.on("session_request", async (event) => {
                 console.log("Session request received:", event);
             });
@@ -76,19 +79,8 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Generate a WalletKit URI
-            const { uri } = await this.walletKit.connect({
-                requiredNamespaces: {
-                    eip155: {
-                        methods: ["personal_sign"],
-                        chains: ["eip155:1"], // Ethereum Mainnet
-                        events: [],
-                    },
-                },
-            });
-
-            // Pass the URI to pair
-            await this.walletKit.pair({ uri });
+            // Generate a WalletKit pairing URI
+            const uri = await this.walletKit.pair(); // Pair directly to get the URI
 
             console.log(`[Session: ${sessionId}] Reown WalletKit URI: ${uri}`);
 
