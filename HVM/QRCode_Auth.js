@@ -1,4 +1,5 @@
-import WalletKit from "@reown/walletkit";
+import { Core } from "@walletconnect/core";
+import { WalletKit } from "@reown/walletkit";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
@@ -15,36 +16,26 @@ class QR_Code_Auth {
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
 
         this.ensureQRCodeDirectory();
+
+        // Initialize Core and WalletKit
+        this.core = new Core({
+            projectId: "1b54a5d583ce208cc28c1362cdd3d437",
+        });
+
+        this.walletKit = null;
     }
 
     ensureQRCodeDirectory() {
-        try {
-            if (!fs.existsSync(this.qrCodeDir)) {
-                fs.mkdirSync(this.qrCodeDir, { recursive: true });
-                console.log("QR code directory created.");
-            }
-            fs.accessSync(this.qrCodeDir, fs.constants.W_OK);
-            console.log("QR code directory is writable.");
-        } catch (error) {
-            console.error("Error ensuring QR code directory:", error.message);
-            throw new Error("QR code directory is not writable or accessible.");
+        if (!fs.existsSync(this.qrCodeDir)) {
+            fs.mkdirSync(this.qrCodeDir, { recursive: true });
+            console.log("QR code directory created.");
         }
     }
 
-    async generateAuthenticationQRCode(walletAddress) {
-        if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
-            throw new Error("Invalid wallet address.");
-        }
-
-        try {
-            const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const sessionId = `session_${uniqueId}`;
-            const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
-            const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
-
-            // Initialize Reown WalletKit
-            const walletKit = new WalletKit({
-                projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown project ID
+    async initializeWalletKit() {
+        if (!this.walletKit) {
+            this.walletKit = await WalletKit.init({
+                core: this.core,
                 metadata: {
                     name: "HyperMatrix",
                     description: "WEB3 Authentication ~ hyprmtrx Network",
@@ -53,20 +44,47 @@ class QR_Code_Auth {
                 },
             });
 
-            // Create a session and get the connection URI
-            const { uri } = await walletKit.connect({
+            this.walletKit.on("session_proposal", async ({ id, params }) => {
+                const approvedNamespaces = {
+                    eip155: {
+                        methods: ["personal_sign"],
+                        chains: ["eip155:1"],
+                        events: [],
+                    },
+                };
+
+                try {
+                    await this.walletKit.approveSession({ id, namespaces: approvedNamespaces });
+                } catch (error) {
+                    await this.walletKit.rejectSession({ id, reason: "USER_REJECTED" });
+                }
+            });
+
+            this.walletKit.on("session_request", async (event) => {
+                console.log("Session request received:", event);
+            });
+        }
+    }
+
+    async generateAuthenticationQRCode() {
+        try {
+            await this.initializeWalletKit();
+
+            const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const sessionId = `session_${uniqueId}`;
+            const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
+            const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
+
+            const { uri } = await this.walletKit.connect({
                 requiredNamespaces: {
                     eip155: {
                         methods: ["personal_sign"],
-                        chains: ["eip155:1"], // Ethereum Mainnet
+                        chains: ["eip155:1"],
                         events: [],
                     },
                 },
             });
 
-            console.log(`[Session: ${sessionId}] Reown WalletKit URI: ${uri}`);
-
-            // Generate a QR code with the connection URI
             await qrCode.toFile(filePath, uri, {
                 color: {
                     dark: "#000000",
@@ -74,7 +92,6 @@ class QR_Code_Auth {
                 },
             });
 
-            console.log(`[Session: ${sessionId}] QR code generated and saved: ${filePath}`);
             return {
                 status: "success",
                 message: "QR code generated successfully.",
