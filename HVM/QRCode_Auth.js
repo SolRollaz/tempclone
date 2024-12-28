@@ -76,8 +76,19 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Generate a WalletKit pairing URI
-            const { uri } = await this.walletKit.pair(); // Use the correct method `pair`
+            // Generate a WalletKit URI
+            const { uri } = await this.walletKit.connect({
+                requiredNamespaces: {
+                    eip155: {
+                        methods: ["personal_sign"],
+                        chains: ["eip155:1"], // Ethereum Mainnet
+                        events: [],
+                    },
+                },
+            });
+
+            // Pass the URI to pair
+            await this.walletKit.pair({ uri });
 
             console.log(`[Session: ${sessionId}] Reown WalletKit URI: ${uri}`);
 
