@@ -18,11 +18,8 @@ class QR_Code_Auth {
 
         this.ensureQRCodeDirectory();
 
-        this.core = new Core({
-            projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown project ID
-        });
-
-        this.walletKit = null;
+        this.core = null; // Core instance
+        this.walletKit = null; // WalletKit instance
     }
 
     ensureQRCodeDirectory() {
@@ -32,64 +29,76 @@ class QR_Code_Auth {
         }
     }
 
-    async initializeWalletKit() {
-        if (!this.walletKit) {
-            this.walletKit = await WalletKit.init({
-                core: this.core,
-                metadata: {
-                    name: "HyperMatrix",
-                    description: "WEB3 Authentication ~ hyprmtrx Network",
-                    url: "https://hyprmtrx.com",
-                    icons: ["https://hyprmtrx.com/favicon.ico"],
-                },
-            });
+    async initializeCoreAndWalletKit() {
+        try {
+            if (!this.core) {
+                // Step 1: Initialize Core
+                this.core = new Core({
+                    projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown Cloud project ID
+                });
 
-            // Listen for relay connection events
-            this.core.relayer.on("relayer_connect", () => {
-                console.log("Relay server connected successfully.");
-            });
+                // Step 2: Add relay connection listeners
+                this.core.relayer.on("relayer_connect", () => {
+                    console.log("Connected to relay server.");
+                });
 
-            this.core.relayer.on("relayer_disconnect", () => {
-                console.error("Relay server disconnected. Check your network or relay configuration.");
-            });
+                this.core.relayer.on("relayer_disconnect", () => {
+                    console.error("Disconnected from relay server.");
+                });
 
-            this.core.relayer.on("error", (error) => {
-                console.error("Relay server encountered an error:", error);
-            });
+                this.core.relayer.on("error", (error) => {
+                    console.error("Relay server encountered an error:", error);
+                });
+            }
 
-            // Listen for session proposals
-            this.walletKit.on("session_proposal", async ({ id, params }) => {
-                console.log("Session proposal received:", params);
-
-                // Required namespaces for the session
-                const requiredNamespaces = {
-                    eip155: {
-                        methods: ["personal_sign"],
-                        chains: ["eip155:1"], // Ethereum Mainnet
-                        events: ["accountsChanged", "chainChanged"],
+            if (!this.walletKit) {
+                // Step 3: Initialize WalletKit
+                this.walletKit = await WalletKit.init({
+                    core: this.core,
+                    metadata: {
+                        name: "hyprmtrx",
+                        description: "WEB3 Authentication via HyperMatrix",
+                        url: "https://hyprmtrx.xyz", // Use your app's actual domain
+                        icons: ["https://hyprmtrx.com/favicon.png"], // Use a valid favicon URL
                     },
-                };
+                });
 
-                try {
-                    await this.walletKit.approveSession({
-                        id,
-                        namespaces: requiredNamespaces,
-                    });
-                    console.log("Session approved successfully.");
-                } catch (error) {
-                    console.error("Failed to approve session:", error.message);
-                }
-            });
+                // Step 4: Add WalletKit event listeners
+                this.walletKit.on("session_proposal", async ({ id, params }) => {
+                    console.log("Session proposal received:", params);
 
-            this.walletKit.on("proposal_expire", ({ id }) => {
-                console.log(`Session proposal ${id} expired.`);
-            });
+                    const requiredNamespaces = {
+                        eip155: {
+                            methods: ["personal_sign", "eth_sendTransaction"], // Wallet methods
+                            chains: ["eip155:1"], // Ethereum Mainnet
+                            events: ["accountsChanged", "chainChanged"], // Blockchain events
+                        },
+                    };
+
+                    try {
+                        await this.walletKit.approveSession({
+                            id,
+                            namespaces: requiredNamespaces,
+                        });
+                        console.log("Session approved successfully.");
+                    } catch (error) {
+                        console.error("Failed to approve session:", error.message);
+                    }
+                });
+
+                this.walletKit.on("proposal_expire", ({ id }) => {
+                    console.log(`Session proposal ${id} expired.`);
+                });
+            }
+        } catch (error) {
+            console.error("Failed to initialize Core or WalletKit:", error.message);
+            throw error;
         }
     }
 
     async generateAuthenticationQRCode() {
         try {
-            await this.initializeWalletKit();
+            await this.initializeCoreAndWalletKit();
 
             const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             const sessionId = `session_${uniqueId}`;
