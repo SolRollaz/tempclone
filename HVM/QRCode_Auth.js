@@ -59,28 +59,24 @@ class QR_Code_Auth {
 
         console.log("WalletKit initialized successfully.");
 
+        // Log all WalletKit events for debugging
         this.walletKit.on("*", (eventName, payload) => {
             console.log(`Event: ${eventName}`, payload);
         });
 
+        // Handle session proposals
         this.walletKit.on("session_proposal", async ({ id, params }) => {
             console.log("Session proposal received:", params);
 
-            const supportedChains = ["eip155:1"];
+            const supportedChains = ["eip155:1"]; // Ethereum Mainnet
             const supportedMethods = ["personal_sign", "eth_sendTransaction", "eth_signTypedData"];
-            const walletAddress = "0xYourWalletAddressHere"; // Replace with the user's actual wallet address
             const authPayload = populateAuthPayload({
                 authPayload: params.authPayload,
                 chains: supportedChains,
                 methods: supportedMethods,
             });
 
-            const formattedMessage = this.walletKit.formatAuthMessage({
-                request: authPayload,
-                iss: `eip155:1:${walletAddress}`,
-            });
-
-            console.log("Formatted authentication message:", formattedMessage);
+            console.log("Populated Auth Payload:", authPayload);
 
             try {
                 await this.walletKit.approveSession({
