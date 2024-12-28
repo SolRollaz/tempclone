@@ -1,4 +1,4 @@
-import WalletConnect from "@walletconnect/client";
+import WalletKit from "@reown/walletkit";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
@@ -42,22 +42,32 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Create a WalletConnect connector
-            const connector = new WalletConnect({
-                bridge: "https://bridge.walletconnect.org", // Default bridge URL
+            // Initialize Reown WalletKit
+            const walletKit = new WalletKit({
+                projectId: "your_project_id_here", // Replace with your Reown project ID
+                metadata: {
+                    name: "HyperMatrix",
+                    description: "Authentication with MetaMask via HyperMatrix",
+                    url: "https://hyprmtrx.xyz",
+                    icons: ["https://hyprmtrx.xyz/favicon.ico"],
+                },
             });
 
-            // Create a session
-            if (!connector.connected) {
-                await connector.createSession();
-            }
+            // Create a session and get the connection URI
+            const { uri } = await walletKit.connect({
+                requiredNamespaces: {
+                    eip155: {
+                        methods: ["personal_sign"],
+                        chains: ["eip155:1"], // Ethereum Mainnet
+                        events: [],
+                    },
+                },
+            });
 
-            // Generate WalletConnect URI
-            const walletConnectURI = connector.uri;
-            console.log(`[Session: ${sessionId}] WalletConnect URI: ${walletConnectURI}`);
+            console.log(`[Session: ${sessionId}] Reown WalletKit URI: ${uri}`);
 
-            // Encode the WalletConnect URI into a QR code
-            await qrCode.toFile(filePath, walletConnectURI, {
+            // Generate a QR code with the connection URI
+            await qrCode.toFile(filePath, uri, {
                 color: {
                     dark: "#000000",
                     light: "#ffffff",
@@ -71,7 +81,7 @@ class QR_Code_Auth {
                 qr_code_path: filePath,
                 qr_code_url: publicUrl,
                 session_id: sessionId,
-                walletconnect_uri: walletConnectURI,
+                walletkit_uri: uri,
             };
         } catch (error) {
             console.error("Error generating QR code:", error.message);
