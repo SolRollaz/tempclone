@@ -3,6 +3,7 @@ import { WalletKit } from "@reown/walletkit";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto"; // For generating topic and symmetric key
 
 class QR_Code_Auth {
     constructor(client, dbName, systemConfig) {
@@ -46,7 +47,6 @@ class QR_Code_Auth {
             this.walletKit.on("session_proposal", async ({ id, params }) => {
                 console.log("Session proposal received:", params);
 
-                // Approve the session with namespaces
                 const approvedNamespaces = {
                     eip155: {
                         methods: ["personal_sign"],
@@ -81,12 +81,21 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Step 1: Generate Pairing URI
-            console.log("Generating pairing URI...");
-            const uri = await this.walletKit.createPairing();
-            console.log(`Pairing URI generated: ${uri}`);
+            // Step 1: Manually Generate Pairing URI
+            console.log("Manually constructing pairing URI...");
+            const topic = crypto.randomBytes(32).toString("hex");
+            const symKey = crypto.randomBytes(32).toString("hex");
+            const relayProtocol = "irn";
+            const expiryTimestamp = Math.floor(Date.now() / 1000) + 600; // 10 minutes expiry
+            const uri = `wc:${topic}@2?expiryTimestamp=${expiryTimestamp}&relay-protocol=${relayProtocol}&symKey=${symKey}`;
 
-            // Step 2: Generate QR Code
+            console.log(`Pairing URI constructed: ${uri}`);
+
+            // Step 2: Pair with the Generated URI
+            console.log("Pairing with the constructed URI...");
+            await this.walletKit.pair({ uri });
+
+            // Step 3: Generate QR Code
             await qrCode.toFile(filePath, uri, {
                 color: {
                     dark: "#000000",
