@@ -61,18 +61,19 @@ class QR_Code_Auth {
             this.walletKit.on("session_proposal", async ({ id, params }) => {
                 console.log("Session proposal received:", params);
 
-                const approvedNamespaces = {
+                // Required namespaces for the session
+                const requiredNamespaces = {
                     eip155: {
                         methods: ["personal_sign"],
-                        chains: ["eip155:1"],
-                        events: [],
+                        chains: ["eip155:1"], // Ethereum Mainnet
+                        events: ["accountsChanged", "chainChanged"],
                     },
                 };
 
                 try {
                     await this.walletKit.approveSession({
                         id,
-                        namespaces: approvedNamespaces,
+                        namespaces: requiredNamespaces,
                     });
                     console.log("Session approved successfully.");
                 } catch (error) {
@@ -129,27 +130,6 @@ class QR_Code_Auth {
         } catch (error) {
             console.error("Error generating QR code:", error.message);
             return { status: "failure", message: "Failed to generate QR code." };
-        }
-    }
-
-    async connectSession(topic = null) {
-        try {
-            const requiredNamespaces = {
-                eip155: {
-                    methods: ["personal_sign"],
-                    chains: ["eip155:1"],
-                    events: [],
-                },
-            };
-
-            console.log("Connecting session...");
-            await this.walletKit.connect({
-                requiredNamespaces,
-                topic, // Existing topic or null for new
-            });
-            console.log("Session connected successfully.");
-        } catch (error) {
-            console.error("Error connecting session:", error.message);
         }
     }
 }
