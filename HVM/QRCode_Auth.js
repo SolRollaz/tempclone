@@ -45,12 +45,12 @@ class QR_Code_Auth {
                 },
             });
 
-            // Handle session proposals to generate the URI
+            // Listen for session proposals to capture pairing URI
             this.walletKit.on("session_proposal", async ({ id, params }) => {
                 const approvedNamespaces = {
                     eip155: {
                         methods: ["personal_sign"],
-                        chains: ["eip155:1"],
+                        chains: ["eip155:1"], // Ethereum Mainnet
                         events: [],
                     },
                 };
@@ -66,9 +66,50 @@ class QR_Code_Auth {
                 }
             });
 
-            // Handle session requests (e.g., signing)
-            this.walletKit.on("session_request", async (event) => {
-                console.log("Session request received:", event);
+            // Handle authentication requests
+            this.walletKit.on("session_authenticate", async (payload) => {
+                try {
+                    const supportedChains = ["eip155:1"];
+                    const supportedMethods = ["personal_sign"];
+
+                    // Populate authentication payload
+                    const authPayload = populateAuthPayload({
+                        authPayload: payload.params.authPayload,
+                        chains: supportedChains,
+                        methods: supportedMethods,
+                    });
+
+                    const userAddress = "0xYourWalletAddressHere"; // Replace with the user's Ethereum address
+                    const message = this.walletKit.formatAuthMessage({
+                        request: authPayload,
+                        iss: `eip155:1:${userAddress}`,
+                    });
+
+                    // Sign the message (use your wallet logic)
+                    const signature = await this.signMessage(message);
+
+                    const auth = buildAuthObject(
+                        authPayload,
+                        {
+                            t: "eip191",
+                            s: signature,
+                        },
+                        `eip155:1:${userAddress}`
+                    );
+
+                    await this.walletKit.approveSessionAuthenticate({
+                        id: payload.id,
+                        auths: [auth],
+                    });
+
+                    console.log("Authentication approved.");
+                } catch (error) {
+                    console.error("Failed to authenticate session:", error.message);
+                    await this.walletKit.rejectSessionAuthenticate({
+                        id: payload.id,
+                        reason: getSdkError("USER_REJECTED"),
+                    });
+                }
             });
         }
     }
@@ -82,12 +123,12 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Initiate pairing and wait for the URI
-            if (!this.pairingUri) {
-                await this.walletKit.pair(); // This will trigger `session_proposal` and generate the URI
-            }
+            // Initiate pairing
+            await this.walletKit.pair(); // This will trigger `session_proposal`
 
-            console.log(`[Session: ${sessionId}] Pairing URI: ${this.pairingUri}`);
+            if (!this.pairingUri) {
+                throw new Error("Pairing URI not generated.");
+            }
 
             // Generate a QR code with the pairing URI
             await qrCode.toFile(filePath, this.pairingUri, {
@@ -110,6 +151,12 @@ class QR_Code_Auth {
             console.error("Error generating QR code:", error.message);
             return { status: "failure", message: "Failed to generate QR code." };
         }
+    }
+
+    async signMessage(message) {
+        // Implement your wallet's signing logic here
+        console.log("Signing message:", message);
+        return "signature-placeholder"; // Replace with actual signature
     }
 }
 
