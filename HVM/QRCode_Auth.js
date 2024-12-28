@@ -53,7 +53,7 @@ class QR_Code_Auth {
                 name: "hyprmtrx",
                 description: "WEB3 Authentication via HyperMatrix",
                 url: "https://hyprmtrx.xyz",
-                icons: ["https://hyprmtrx.com/favicon.png"],
+                icons: ["https://hyprmtrx.xyz/favicon.png"],
             },
         });
 
