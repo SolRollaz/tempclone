@@ -17,12 +17,12 @@ class QR_Code_Auth {
 
         this.ensureQRCodeDirectory();
 
-        // Initialize Core
         this.core = new Core({
-            projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Your Reown project ID
+            projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown project ID
         });
 
         this.walletKit = null;
+        this.pairingUri = null; // To store the URI from session_proposal
     }
 
     ensureQRCodeDirectory() {
@@ -43,6 +43,35 @@ class QR_Code_Auth {
                     icons: ["https://hyprmtrx.com/favicon.ico"],
                 },
             });
+
+            // Listen for session proposals to capture URI
+            this.walletKit.on("session_proposal", async ({ id, params }) => {
+                console.log("Session proposal received:", params);
+
+                // Store the pairing URI from params
+                this.pairingUri = params.uri;
+
+                // Approve the session with the required namespaces
+                const approvedNamespaces = {
+                    eip155: {
+                        methods: ["personal_sign"],
+                        chains: ["eip155:1"], // Ethereum Mainnet
+                        events: [],
+                    },
+                };
+
+                try {
+                    await this.walletKit.approveSession({ id, namespaces: approvedNamespaces });
+                    console.log("Session approved successfully.");
+                } catch (error) {
+                    console.error("Failed to approve session:", error.message);
+                }
+            });
+
+            // Handle session expiration
+            this.walletKit.on("proposal_expire", ({ id }) => {
+                console.log(`Session proposal ${id} expired.`);
+            });
         }
     }
 
@@ -55,24 +84,18 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Generate the pairing URI
-            const { uri } = await this.walletKit.connect({
-                requiredNamespaces: {
-                    eip155: {
-                        methods: ["personal_sign"],
-                        chains: ["eip155:1"], // Ethereum Mainnet
-                        events: [],
-                    },
-                },
-            });
+            // Trigger the pairing process
+            await this.walletKit.pair();
 
-            // Use the URI in the pair method
-            await this.walletKit.pair({ uri });
+            // Wait for the session proposal and ensure the URI is available
+            if (!this.pairingUri) {
+                throw new Error("Pairing URI not yet available. Please retry.");
+            }
 
-            console.log(`[Session: ${sessionId}] Pairing URI: ${uri}`);
+            console.log(`[Session: ${sessionId}] Pairing URI: ${this.pairingUri}`);
 
-            // Generate QR code
-            await qrCode.toFile(filePath, uri, {
+            // Generate QR code with the pairing URI
+            await qrCode.toFile(filePath, this.pairingUri, {
                 color: {
                     dark: "#000000",
                     light: "#ffffff",
@@ -86,7 +109,7 @@ class QR_Code_Auth {
                 qr_code_path: filePath,
                 qr_code_url: publicUrl,
                 session_id: sessionId,
-                walletkit_uri: uri,
+                walletkit_uri: this.pairingUri,
             };
         } catch (error) {
             console.error("Error generating QR code:", error.message);
