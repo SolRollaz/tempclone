@@ -44,12 +44,12 @@ class QR_Code_Auth {
 
             // Initialize Reown WalletKit
             const walletKit = new WalletKit({
-                projectId: "your_project_id_here", // Replace with your Reown project ID
+                projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown project ID
                 metadata: {
                     name: "HyperMatrix",
-                    description: "Authentication with MetaMask via HyperMatrix",
-                    url: "https://hyprmtrx.xyz",
-                    icons: ["https://hyprmtrx.xyz/favicon.ico"],
+                    description: "WEB3 Authentication ~ hyprmtrx Network",
+                    url: "https://hyprmtrx.com",
+                    icons: ["https://hyprmtrx.com/favicon.ico"],
                 },
             });
 
