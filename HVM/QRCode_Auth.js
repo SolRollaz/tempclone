@@ -1,4 +1,4 @@
-import { MetaMaskSDK } from "@metamask/sdk";
+import WalletConnect from "@walletconnect/client";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
@@ -13,15 +13,6 @@ class QR_Code_Auth {
         this.dbName = dbName;
         this.systemConfig = systemConfig;
         this.qrCodeDir = path.join(process.cwd(), "QR_Codes");
-
-        this.metaMaskSDK = new MetaMaskSDK({
-            dappMetadata: {
-                name: "HyperMatrix",
-                description: "Authentication with MetaMask via HyperMatrix",
-                url: "https://hyprmtrx.xyz",
-            },
-        });
-        this.ethereum = this.metaMaskSDK.getProvider();
 
         this.ensureQRCodeDirectory();
     }
@@ -51,16 +42,22 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            const message = `Sign this message to authenticate: ${walletAddress} - ${Date.now()}`;
-            const qrCodeData = {
-                method: "personal_sign",
-                params: [message, walletAddress],
-                session_id: sessionId,
-            };
+            // Create a WalletConnect connector
+            const connector = new WalletConnect({
+                bridge: "https://bridge.walletconnect.org", // Default bridge URL
+            });
 
-            console.log(`[Session: ${sessionId}] Generated QR Code Data:`, qrCodeData);
+            // Create a session
+            if (!connector.connected) {
+                await connector.createSession();
+            }
 
-            await qrCode.toFile(filePath, JSON.stringify(qrCodeData), {
+            // Generate WalletConnect URI
+            const walletConnectURI = connector.uri;
+            console.log(`[Session: ${sessionId}] WalletConnect URI: ${walletConnectURI}`);
+
+            // Encode the WalletConnect URI into a QR code
+            await qrCode.toFile(filePath, walletConnectURI, {
                 color: {
                     dark: "#000000",
                     light: "#ffffff",
@@ -74,6 +71,7 @@ class QR_Code_Auth {
                 qr_code_path: filePath,
                 qr_code_url: publicUrl,
                 session_id: sessionId,
+                walletconnect_uri: walletConnectURI,
             };
         } catch (error) {
             console.error("Error generating QR code:", error.message);
