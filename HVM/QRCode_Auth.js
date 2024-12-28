@@ -18,8 +18,9 @@ class QR_Code_Auth {
 
         this.ensureQRCodeDirectory();
 
-        this.core = null; // Core instance
-        this.walletKit = null; // WalletKit instance
+        // Initialize Core and WalletKit
+        this.core = this.initializeCore();
+        this.walletKit = null; // WalletKit will be initialized asynchronously
     }
 
     ensureQRCodeDirectory() {
@@ -34,74 +35,77 @@ class QR_Code_Auth {
         }
     }
 
-    async initializeCoreAndWalletKit() {
+    initializeCore() {
+        console.log("Initializing Core...");
+        const core = new Core({
+            projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown Cloud project ID
+        });
+
+        // Add relay connection listeners
+        core.relayer.on("relayer_connect", () => {
+            console.log("Connected to relay server.");
+        });
+
+        core.relayer.on("relayer_disconnect", () => {
+            console.error("Disconnected from relay server.");
+        });
+
+        core.relayer.on("error", (error) => {
+            console.error("Relay server encountered an error:", error);
+        });
+
+        return core;
+    }
+
+    async initializeWalletKit() {
+        if (this.walletKit) {
+            return; // WalletKit is already initialized
+        }
+
         try {
-            console.log("Initializing Core and WalletKit...");
-            if (!this.core) {
-                // Step 1: Initialize Core
-                this.core = new Core({
-                    projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Replace with your Reown Cloud project ID
-                });
+            console.log("Initializing WalletKit...");
+            this.walletKit = await WalletKit.init({
+                core: this.core,
+                metadata: {
+                    name: "hyprmtrx",
+                    description: "WEB3 Authentication via HyperMatrix",
+                    url: "https://hyprmtrx.xyz", // Use your app's actual domain
+                    icons: ["https://hyprmtrx.com/favicon.png"], // Use a valid favicon URL
+                },
+            });
 
-                // Step 2: Add relay connection listeners
-                this.core.relayer.on("relayer_connect", () => {
-                    console.log("Connected to relay server.");
-                });
+            console.log("WalletKit initialized successfully.");
 
-                this.core.relayer.on("relayer_disconnect", () => {
-                    console.error("Disconnected from relay server.");
-                });
+            // Add WalletKit event listeners
+            this.walletKit.on("session_proposal", async ({ id, params }) => {
+                console.log("Session proposal received:", params);
 
-                this.core.relayer.on("error", (error) => {
-                    console.error("Relay server encountered an error:", error);
-                });
-            }
-
-            if (!this.walletKit) {
-                // Step 3: Initialize WalletKit
-                this.walletKit = await WalletKit.init({
-                    core: this.core,
-                    metadata: {
-                        name: "hyprmtrx",
-                        description: "WEB3 Authentication via HyperMatrix",
-                        url: "https://hyprmtrx.xyz", // Use your app's actual domain
-                        icons: ["https://hyprmtrx.com/favicon.png"], // Use a valid favicon URL
+                const requiredNamespaces = {
+                    eip155: {
+                        methods: ["personal_sign", "eth_sendTransaction"], // Wallet methods
+                        chains: ["eip155:1"], // Ethereum Mainnet
+                        events: ["accountsChanged", "chainChanged"], // Blockchain events
                     },
-                });
+                };
 
-                console.log("WalletKit initialized successfully.");
+                try {
+                    await this.walletKit.approveSession({
+                        id,
+                        namespaces: requiredNamespaces,
+                    });
+                    console.log("Session approved successfully.");
+                } catch (error) {
+                    console.error("Failed to approve session:", error.message);
+                }
+            });
 
-                // Step 4: Add WalletKit event listeners
-                this.walletKit.on("session_proposal", async ({ id, params }) => {
-                    console.log("Session proposal received:", params);
+            this.walletKit.on("proposal_expire", ({ id }) => {
+                console.warn(`Session proposal ${id} expired.`);
+            });
 
-                    const requiredNamespaces = {
-                        eip155: {
-                            methods: ["personal_sign", "eth_sendTransaction"], // Wallet methods
-                            chains: ["eip155:1"], // Ethereum Mainnet
-                            events: ["accountsChanged", "chainChanged"], // Blockchain events
-                        },
-                    };
-
-                    try {
-                        await this.walletKit.approveSession({
-                            id,
-                            namespaces: requiredNamespaces,
-                        });
-                        console.log("Session approved successfully.");
-                    } catch (error) {
-                        console.error("Failed to approve session:", error.message);
-                    }
-                });
-
-                this.walletKit.on("proposal_expire", ({ id }) => {
-                    console.warn(`Session proposal ${id} expired.`);
-                });
-
-                console.log("WalletKit event listeners added.");
-            }
+            console.log("WalletKit event listeners added.");
         } catch (error) {
-            console.error("Failed to initialize Core or WalletKit:", error.message);
+            console.error("Failed to initialize WalletKit:", error.message);
             throw error;
         }
     }
@@ -109,7 +113,7 @@ class QR_Code_Auth {
     async generateAuthenticationQRCode() {
         try {
             console.log("Starting QR code generation process...");
-            await this.initializeCoreAndWalletKit();
+            await this.initializeWalletKit();
 
             const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             const sessionId = `session_${uniqueId}`;
