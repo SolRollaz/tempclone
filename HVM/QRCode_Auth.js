@@ -19,7 +19,7 @@ class QR_Code_Auth {
 
         // Initialize Core and WalletKit
         this.core = new Core({
-            projectId: "1b54a5d583ce208cc28c1362cdd3d437",
+            projectId: "1b54a5d583ce208cc28c1362cdd3d437", // Your Reown project ID
         });
 
         this.walletKit = null;
@@ -49,7 +49,7 @@ class QR_Code_Auth {
                 const approvedNamespaces = {
                     eip155: {
                         methods: ["personal_sign"],
-                        chains: ["eip155:1"],
+                        chains: ["eip155:1"], // Ethereum Mainnet
                         events: [],
                     },
                 };
@@ -63,7 +63,7 @@ class QR_Code_Auth {
                 }
             });
 
-            // Handle session requests
+            // Handle session requests (e.g., signing)
             this.walletKit.on("session_request", async (event) => {
                 console.log("Session request received:", event);
             });
@@ -79,12 +79,21 @@ class QR_Code_Auth {
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
 
-            // Generate a WalletKit pairing URI
-            const uri = await this.walletKit.pair(); // Pair directly to get the URI
+            // Generate a pairing URI (not using pair() directly here)
+            const uri = await this.core.generatePairingUri({
+                requiredNamespaces: {
+                    eip155: {
+                        methods: ["personal_sign"],
+                        chains: ["eip155:1"], // Ethereum Mainnet
+                        events: [],
+                    },
+                },
+                relayUrl: "wss://relay.walletconnect.com", // Ensure correct relay URL
+            });
 
-            console.log(`[Session: ${sessionId}] Reown WalletKit URI: ${uri}`);
+            console.log(`[Session: ${sessionId}] Pairing URI generated: ${uri}`);
 
-            // Generate a QR code with the connection URI
+            // Generate QR code for the URI
             await qrCode.toFile(filePath, uri, {
                 color: {
                     dark: "#000000",
