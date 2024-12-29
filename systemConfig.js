@@ -5,8 +5,8 @@ class SystemConfig {
     constructor() {
         // MongoDB configuration with fallback values
         this.mongoConfig = {
-            uri: process.env.MONGO_URI || "mongodb://localhost:27017/default_db",
-            dbName: process.env.MONGO_DB_NAME || "default_db",
+            uri: process.env.MONGO_URI || "mongodb://localhost:27017/default_db", // Placeholder if MONGO_URI is not set
+            dbName: process.env.MONGO_DB_NAME || "default_db", // Placeholder if MONGO_DB_NAME is not set
         };
 
         // Debug: Log MongoDB configuration
@@ -22,28 +22,28 @@ class SystemConfig {
         this.networks = {
             ETH: {
                 name: "Ethereum",
-                rpcUrl: process.env.RPC_URL_ETHEREUM || "https://mainnet.infura.io/v3/default",
-                feeWallet: process.env.FEE_WALLET_ETH || "0x0000000000000000000000000000000000000000",
+                rpcUrl: process.env.RPC_URL_ETHEREUM || "https://mainnet.infura.io/v3/default", // Placeholder RPC URL
+                feeWallet: process.env.FEE_WALLET_ETH || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
             },
             BNB: {
                 name: "Binance Smart Chain",
-                rpcUrl: process.env.RPC_URL_BNB || "https://bsc-dataseed.binance.org/",
-                feeWallet: process.env.FEE_WALLET_BNB || "0x0000000000000000000000000000000000000000",
+                rpcUrl: process.env.RPC_URL_BNB || "https://bsc-dataseed.binance.org/", // Placeholder RPC URL
+                feeWallet: process.env.FEE_WALLET_BNB || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
             },
             AVAX: {
                 name: "Avalanche",
-                rpcUrl: process.env.RPC_URL_AVAX || "https://api.avax.network/ext/bc/C/rpc",
-                feeWallet: process.env.FEE_WALLET_AVAX || "0x0000000000000000000000000000000000000000",
+                rpcUrl: process.env.RPC_URL_AVAX || "https://api.avax.network/ext/bc/C/rpc", // Placeholder RPC URL
+                feeWallet: process.env.FEE_WALLET_AVAX || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
             },
             Base: {
                 name: "Base",
-                rpcUrl: process.env.RPC_URL_BASE || "https://base-rpc-url.com",
-                feeWallet: process.env.FEE_WALLET_BASE || "0x0000000000000000000000000000000000000000",
+                rpcUrl: process.env.RPC_URL_BASE || "https://base-rpc-url.com", // Placeholder RPC URL
+                feeWallet: process.env.FEE_WALLET_BASE || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
             },
             DAG: {
                 name: "Constellation",
-                rpcUrl: process.env.RPC_URL_DAG || "https://constellationnetwork.io.s3-website.us-west-1.amazonaws.com/currency/v1/l1/public/",
-                feeWallet: process.env.FEE_WALLET_DAG || "DAG5JL23TzANyohk1enp6VgdBoEBeYFNPpGQiSK2",
+                rpcUrl: process.env.RPC_URL_DAG || "https://constellationnetwork.io.s3-website.us-west-1.amazonaws.com/currency/v1/l1/public/", // Placeholder RPC URL
+                feeWallet: process.env.FEE_WALLET_DAG || "DAG5JL23TzANyohk1enp6VgdBoEBeYFNPpGQiSK2", // Placeholder wallet address
             },
         };
 
@@ -54,7 +54,7 @@ class SystemConfig {
         this.providers = this.initializeProviders();
 
         // Set Game API Base URL with fallback to the specified default
-        this.gameApiBaseUrl = process.env.GAME_API_BASE_URL || "https://hyprmtrx.xyz/api/auth";
+        this.gameApiBaseUrl = process.env.GAME_API_BASE_URL || "https://hyprmtrx.xyz/api/auth"; // Placeholder API URL
     }
 
     /**
