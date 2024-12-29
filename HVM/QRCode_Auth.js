@@ -5,6 +5,8 @@ import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
+import systemConfig from "../systemConfig";
+
 
 class QR_Code_Auth {
     constructor(client, dbName, systemConfig) {
