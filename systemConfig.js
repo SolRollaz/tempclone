@@ -2,7 +2,6 @@ import 'dotenv/config'; // Load environment variables from .env file
 import { JsonRpcProvider } from "ethers"; // Blockchain provider for RPC interactions
 import fs from "fs"; // File system for managing configurations dynamically (if needed)
 import path from "path"; // Path utilities for working with file paths
-import { WalletKit } from "@reown/walletkit"; // WalletKit for WalletConnect-related functionality
 
 class SystemConfig {
     constructor() {
@@ -24,17 +23,12 @@ class SystemConfig {
         // WalletConnect configuration
         this.walletConnect = {
             projectId: process.env.WALLETCONNECT_PROJECT_ID || "your_walletconnect_project_id", // Placeholder WalletConnect Project ID
-            chains: [
-                {
-                    id: 1, // Ethereum Mainnet
-                    rpcUrl: process.env.RPC_URL_ETHEREUM || "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID", // Placeholder RPC URL
-                },
-            ],
+            chains: this.getChainsConfig(), // Dynamically get chains configuration
             metadata: {
-                name: "hyprmtrx",
-                description: "WEB3 Authentication via HyperMatrix",
-                url: "https://hyprmtrx.xyz",
-                icons: ["https://hyprmtrx.xyz/favicon.png"],
+                name: process.env.APP_NAME || "hyprmtrx", // Fallback app name
+                description: process.env.APP_DESCRIPTION || "WEB3 Authentication via HyperMatrix", // Fallback description
+                url: process.env.APP_URL || "https://hyprmtrx.xyz", // Fallback app URL
+                icons: [process.env.APP_ICON_URL || "https://hyprmtrx.xyz/favicon.png"], // Fallback app icon
             },
             qrCodeBaseUrl: process.env.QR_CODE_BASE_URL || "https://hyprmtrx.xyz/qr-codes", // Placeholder QR code base URL
         };
@@ -58,6 +52,31 @@ class SystemConfig {
 
         // Initialize blockchain providers
         this.providers = this.initializeProviders();
+    }
+
+    /**
+     * Get chains configuration for WalletConnect.
+     * Dynamically reads chains from network configuration.
+     * @returns {Array} - Array of chain configurations.
+     */
+    getChainsConfig() {
+        return Object.values(this.networks).map(({ name, rpcUrl }) => ({
+            id: this.getChainIdByName(name),
+            rpcUrl,
+        }));
+    }
+
+    /**
+     * Map network names to chain IDs.
+     * @param {string} name - Network name.
+     * @returns {number} - Chain ID for the network.
+     */
+    getChainIdByName(name) {
+        const chainIdMap = {
+            Ethereum: 1,
+            "Binance Smart Chain": 56,
+        };
+        return chainIdMap[name] || 0;
     }
 
     /**
@@ -121,6 +140,14 @@ class SystemConfig {
             throw new Error(`Provider not found for network: ${network}`);
         }
         return provider;
+    }
+
+    /**
+     * Get a list of all supported networks.
+     * @returns {Array<string>} - List of supported network keys.
+     */
+    getSupportedNetworks() {
+        return Object.keys(this.networks);
     }
 }
 
