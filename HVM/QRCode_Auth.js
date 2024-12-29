@@ -1,7 +1,7 @@
 import { Core } from "@walletconnect/core";
 import { createAppKit } from "@reown/appkit";
 import { WalletKit } from "@reown/walletkit";
-import { wagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
@@ -21,6 +21,7 @@ class QR_Code_Auth {
 
         this.core = this.initializeCore();
         this.walletKit = null;
+        this.adapter = this.initializeAdapter();
         this.modal = this.initializeModal();
     }
 
@@ -44,10 +45,23 @@ class QR_Code_Auth {
         return core;
     }
 
+    initializeAdapter() {
+        console.log("Initializing Wagmi Adapter...");
+        return new WagmiAdapter({
+            chains: [
+                {
+                    id: 1, // Ethereum Mainnet
+                    rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
+                },
+            ],
+            projectId: "1b54a5d583ce208cc28c1362cdd3d437",
+        });
+    }
+
     initializeModal() {
         console.log("Initializing Modal...");
         const modal = createAppKit({
-            adapters: [wagmiAdapter], // Add the Wagmi adapter
+            adapters: [this.adapter], // Add the initialized Wagmi adapter
             networks: [{ id: 1, name: "Ethereum Mainnet" }], // Specify networks
             projectId: "1b54a5d583ce208cc28c1362cdd3d437",
         });
@@ -126,7 +140,7 @@ class QR_Code_Auth {
                 throw new Error("No wallet connected.");
             }
 
-            const signature = await wagmiAdapter.signMessage({ message });
+            const signature = await this.adapter.signMessage({ message });
             console.log("Message signed successfully:", signature);
 
             return { status: "success", signature };
