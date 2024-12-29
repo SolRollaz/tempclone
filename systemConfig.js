@@ -2,7 +2,7 @@ import 'dotenv/config'; // Load environment variables from .env file
 import { JsonRpcProvider } from "ethers"; // Blockchain provider for RPC interactions
 import fs from "fs"; // File system for managing configurations dynamically (if needed)
 import path from "path"; // Path utilities for working with file paths
-import { WalletKit } from "@walletconnect/walletkit"; // WalletKit for WalletConnect-related functionality
+import { WalletKit } from "@reown/walletkit"; // WalletKit for WalletConnect-related functionality
 
 class SystemConfig {
     constructor() {
