@@ -1,12 +1,15 @@
 import 'dotenv/config'; // Load environment variables from .env file
-import { JsonRpcProvider } from "ethers";
+import { JsonRpcProvider } from "ethers"; // Blockchain provider for RPC interactions
+import fs from "fs"; // File system for managing configurations dynamically (if needed)
+import path from "path"; // Path utilities for working with file paths
+import { WalletKit } from "@walletconnect/walletkit"; // WalletKit for WalletConnect-related functionality
 
 class SystemConfig {
     constructor() {
-        // MongoDB configuration with fallback values
+        // MongoDB configuration
         this.mongoConfig = {
-            uri: process.env.MONGO_URI || "mongodb://localhost:27017/default_db", // Placeholder if MONGO_URI is not set
-            dbName: process.env.MONGO_DB_NAME || "default_db", // Placeholder if MONGO_DB_NAME is not set
+            uri: process.env.MONGO_URI || "mongodb://localhost:27017/default_db", // Placeholder URI
+            dbName: process.env.MONGO_DB_NAME || "default_db", // Placeholder database name
         };
 
         // Debug: Log MongoDB configuration
@@ -18,32 +21,35 @@ class SystemConfig {
             throw new Error(`Invalid MongoDB URI: ${this.mongoConfig.uri}`);
         }
 
-        // Supported blockchain networks configuration
+        // WalletConnect configuration
+        this.walletConnect = {
+            projectId: process.env.WALLETCONNECT_PROJECT_ID || "your_walletconnect_project_id", // Placeholder WalletConnect Project ID
+            chains: [
+                {
+                    id: 1, // Ethereum Mainnet
+                    rpcUrl: process.env.RPC_URL_ETHEREUM || "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID", // Placeholder RPC URL
+                },
+            ],
+            metadata: {
+                name: "hyprmtrx",
+                description: "WEB3 Authentication via HyperMatrix",
+                url: "https://hyprmtrx.xyz",
+                icons: ["https://hyprmtrx.xyz/favicon.png"],
+            },
+            qrCodeBaseUrl: process.env.QR_CODE_BASE_URL || "https://hyprmtrx.xyz/qr-codes", // Placeholder QR code base URL
+        };
+
+        // Blockchain networks configuration
         this.networks = {
             ETH: {
                 name: "Ethereum",
-                rpcUrl: process.env.RPC_URL_ETHEREUM || "https://mainnet.infura.io/v3/default", // Placeholder RPC URL
+                rpcUrl: process.env.RPC_URL_ETHEREUM || "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID", // Placeholder RPC URL
                 feeWallet: process.env.FEE_WALLET_ETH || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
             },
             BNB: {
                 name: "Binance Smart Chain",
                 rpcUrl: process.env.RPC_URL_BNB || "https://bsc-dataseed.binance.org/", // Placeholder RPC URL
                 feeWallet: process.env.FEE_WALLET_BNB || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
-            },
-            AVAX: {
-                name: "Avalanche",
-                rpcUrl: process.env.RPC_URL_AVAX || "https://api.avax.network/ext/bc/C/rpc", // Placeholder RPC URL
-                feeWallet: process.env.FEE_WALLET_AVAX || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
-            },
-            Base: {
-                name: "Base",
-                rpcUrl: process.env.RPC_URL_BASE || "https://base-rpc-url.com", // Placeholder RPC URL
-                feeWallet: process.env.FEE_WALLET_BASE || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
-            },
-            DAG: {
-                name: "Constellation",
-                rpcUrl: process.env.RPC_URL_DAG || "https://constellationnetwork.io.s3-website.us-west-1.amazonaws.com/currency/v1/l1/public/", // Placeholder RPC URL
-                feeWallet: process.env.FEE_WALLET_DAG || "DAG5JL23TzANyohk1enp6VgdBoEBeYFNPpGQiSK2", // Placeholder wallet address
             },
         };
 
@@ -52,9 +58,6 @@ class SystemConfig {
 
         // Initialize blockchain providers
         this.providers = this.initializeProviders();
-
-        // Set Game API Base URL with fallback to the specified default
-        this.gameApiBaseUrl = process.env.GAME_API_BASE_URL || "https://hyprmtrx.xyz/api/auth"; // Placeholder API URL
     }
 
     /**
@@ -76,6 +79,22 @@ class SystemConfig {
     }
 
     /**
+     * Get the WalletConnect project ID.
+     * @returns {string} - WalletConnect project ID.
+     */
+    getWalletConnectProjectId() {
+        return this.walletConnect.projectId;
+    }
+
+    /**
+     * Get configuration for WalletConnect.
+     * @returns {Object} - WalletConnect configuration object.
+     */
+    getWalletConnectConfig() {
+        return this.walletConnect;
+    }
+
+    /**
      * Get the MongoDB connection URI.
      * @returns {string} - MongoDB URI.
      */
@@ -92,18 +111,6 @@ class SystemConfig {
     }
 
     /**
-     * Get configuration for a specific network.
-     * @param {string} network - Network key (e.g., 'ETH', 'BNB').
-     * @returns {Object} - Configuration for the specified network.
-     */
-    getNetworkConfig(network) {
-        if (!this.networks[network]) {
-            throw new Error(`Unsupported network: ${network}`);
-        }
-        return this.networks[network];
-    }
-
-    /**
      * Get the provider for a specific network.
      * @param {string} network - Network key (e.g., 'ETH', 'BNB').
      * @returns {JsonRpcProvider} - Provider instance for the specified network.
@@ -114,43 +121,6 @@ class SystemConfig {
             throw new Error(`Provider not found for network: ${network}`);
         }
         return provider;
-    }
-
-    /**
-     * Get the fee wallet address for a specific network.
-     * @param {string} network - Network key (e.g., 'ETH', 'BNB').
-     * @returns {string} - Fee wallet address for the specified network.
-     */
-    getFeeWallet(network) {
-        return this.getNetworkConfig(network).feeWallet;
-    }
-
-    /**
-     * Get a list of all supported networks.
-     * @returns {Array<string>} - List of supported network keys (e.g., ['ETH', 'BNB']).
-     */
-    getSupportedNetworks() {
-        return Object.keys(this.networks);
-    }
-
-    /**
-     * Check if a network is supported.
-     * @param {string} network - Network key to validate.
-     * @returns {boolean} - True if the network is supported, false otherwise.
-     */
-    isNetworkSupported(network) {
-        return this.networks.hasOwnProperty(network);
-    }
-
-    /**
-     * Get the base URL for the Game API.
-     * @returns {string} - Game API base URL.
-     */
-    getGameAPIBaseUrl() {
-        if (!this.gameApiBaseUrl.startsWith("http")) {
-            throw new Error(`Invalid Game API Base URL: ${this.gameApiBaseUrl}`);
-        }
-        return this.gameApiBaseUrl;
     }
 }
 
