@@ -25,7 +25,7 @@ class SystemConfig {
 
         // WalletConnect configuration
         this.walletConnect = {
-            projectId: process.env.WALLETCONNECT_PROJECT_ID || "your_walletconnect_project_id", // Placeholder WalletConnect Project ID
+            projectId: process.env.WALLETCONNECT_PROJECT_ID || "1b54a5d583ce208cc28c1362cdd3d437", // Placeholder WalletConnect Project ID
             chains: this.getChainsConfig(), // Dynamically get chains configuration
             metadata: {
                 name: process.env.APP_NAME || "hyprmtrx", // Fallback app name
