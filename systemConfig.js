@@ -1,5 +1,7 @@
 import 'dotenv/config'; // Load environment variables from .env file
 import { JsonRpcProvider } from "ethers"; // Blockchain provider for RPC interactions
+import path from "path"; // Path utilities for managing file paths
+import fs from "fs"; // File system module (if needed for dynamic configs)
 
 class SystemConfig {
     constructor() {
