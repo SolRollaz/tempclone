@@ -1,19 +1,6 @@
 import 'dotenv/config'; // Load environment variables from .env file
 import { JsonRpcProvider } from "ethers";
 
-// Debug: Log environment variables to ensure they're loaded correctly
-console.log("Loaded Environment Variables:", {
-    MONGO_URI: process.env.MONGO_URI,
-    MONGO_DB_NAME: process.env.MONGO_DB_NAME,
-    RPC_URL_ETHEREUM: process.env.RPC_URL_ETHEREUM,
-    RPC_URL_BNB: process.env.RPC_URL_BNB,
-    RPC_URL_AVAX: process.env.RPC_URL_AVAX,
-    RPC_URL_BASE: process.env.RPC_URL_BASE,
-    RPC_URL_DAG: process.env.RPC_URL_DAG,
-    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
-    GAME_API_BASE_URL: process.env.GAME_API_BASE_URL, // Log the Game API Base URL
-});
-
 class SystemConfig {
     constructor() {
         // MongoDB configuration with fallback values
