@@ -9,7 +9,7 @@ import path from "path";
 class QR_Code_Auth {
     constructor(client, dbName, systemConfig) {
         if (!client || !dbName || !systemConfig) {
-            throw new Error("MongoClient, dbName, and SystemConfig are required to initialize QR_Code_Auth.");
+            throw new Error("MongoClient, dbName, and systemConfig are required to initialize QR_Code_Auth.");
         }
 
         this.client = client;
@@ -35,7 +35,7 @@ class QR_Code_Auth {
     initializeCore() {
         console.log("Initializing Core...");
         const core = new Core({
-            projectId: "1b54a5d583ce208cc28c1362cdd3d437",
+            projectId: this.systemConfig.walletConnect.projectId, // Use systemConfig for project ID
         });
 
         core.relayer.on("relayer_connect", () => console.log("Connected to relay server."));
@@ -48,13 +48,8 @@ class QR_Code_Auth {
     initializeAdapter() {
         console.log("Initializing Wagmi Adapter...");
         return new WagmiAdapter({
-            chains: [
-                {
-                    id: 1, // Ethereum Mainnet
-                    rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-                },
-            ],
-            projectId: "1b54a5d583ce208cc28c1362cdd3d437",
+            chains: this.systemConfig.walletConnect.chains, // Use chains from systemConfig
+            projectId: this.systemConfig.walletConnect.projectId, // Use projectId from systemConfig
         });
     }
 
@@ -62,8 +57,8 @@ class QR_Code_Auth {
         console.log("Initializing Modal...");
         const modal = createAppKit({
             adapters: [this.adapter], // Add the initialized Wagmi adapter
-            networks: [{ id: 1, name: "Ethereum Mainnet" }], // Specify networks
-            projectId: "1b54a5d583ce208cc28c1362cdd3d437",
+            networks: this.systemConfig.walletConnect.networks || [], // Use networks from systemConfig
+            projectId: this.systemConfig.walletConnect.projectId, // Use projectId from systemConfig
         });
 
         modal.on("stateChange", (state) => console.log("Modal state changed:", state));
@@ -79,10 +74,10 @@ class QR_Code_Auth {
         this.walletKit = await WalletKit.init({
             core: this.core,
             metadata: {
-                name: "hyprmtrx",
-                description: "WEB3 Authentication via HyperMatrix",
-                url: "https://hyprmtrx.xyz",
-                icons: ["https://hyprmtrx.xyz/favicon.png"],
+                name: this.systemConfig.walletConnect.metadata.name || "Default App",
+                description: this.systemConfig.walletConnect.metadata.description || "Default Description",
+                url: this.systemConfig.walletConnect.metadata.url || "https://example.com",
+                icons: this.systemConfig.walletConnect.metadata.icons || ["https://example.com/favicon.png"],
             },
         });
 
@@ -102,7 +97,7 @@ class QR_Code_Auth {
             const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             const sessionId = `session_${uniqueId}`;
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
-            const publicUrl = `https://hyprmtrx.xyz/qr-codes/${path.basename(filePath)}`;
+            const publicUrl = `${this.systemConfig.walletConnect.qrCodeBaseUrl}/${path.basename(filePath)}`;
 
             console.log("Generating pairing details...");
             const uri = this.walletKit.core.pairing.getPairingUri();
