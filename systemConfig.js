@@ -1,10 +1,11 @@
 import 'dotenv/config'; // Load environment variables from .env file
 import { JsonRpcProvider } from "ethers"; // Blockchain provider for RPC interactions
-import fs from "fs"; // File system for managing configurations dynamically (if needed)
-import path from "path"; // Path utilities for working with file paths
 
 class SystemConfig {
     constructor() {
+        // Initialize blockchain networks first
+        this.networks = this.initializeNetworks();
+
         // MongoDB configuration
         this.mongoConfig = {
             uri: process.env.MONGO_URI || "mongodb://localhost:27017/default_db", // Placeholder URI
@@ -33,8 +34,19 @@ class SystemConfig {
             qrCodeBaseUrl: process.env.QR_CODE_BASE_URL || "https://hyprmtrx.xyz/qr-codes", // Placeholder QR code base URL
         };
 
-        // Blockchain networks configuration
-        this.networks = {
+        // Debug: Log supported networks
+        console.log("Supported Networks:", Object.keys(this.networks));
+
+        // Initialize blockchain providers
+        this.providers = this.initializeProviders();
+    }
+
+    /**
+     * Initialize blockchain networks configuration.
+     * @returns {Object} - Networks configuration.
+     */
+    initializeNetworks() {
+        return {
             ETH: {
                 name: "Ethereum",
                 rpcUrl: process.env.RPC_URL_ETHEREUM || "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID", // Placeholder RPC URL
@@ -46,12 +58,6 @@ class SystemConfig {
                 feeWallet: process.env.FEE_WALLET_BNB || "0x0000000000000000000000000000000000000000", // Placeholder wallet address
             },
         };
-
-        // Debug: Log supported networks
-        console.log("Supported Networks:", Object.keys(this.networks));
-
-        // Initialize blockchain providers
-        this.providers = this.initializeProviders();
     }
 
     /**
@@ -60,6 +66,10 @@ class SystemConfig {
      * @returns {Array} - Array of chain configurations.
      */
     getChainsConfig() {
+        if (!this.networks || Object.keys(this.networks).length === 0) {
+            throw new Error("Networks configuration is missing or invalid.");
+        }
+
         return Object.values(this.networks).map(({ name, rpcUrl }) => ({
             id: this.getChainIdByName(name),
             rpcUrl,
