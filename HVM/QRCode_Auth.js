@@ -1,7 +1,7 @@
 import { Core } from "@walletconnect/core";
 import { createAppKit } from "@reown/appkit";
 import { WalletKit } from "@reown/walletkit";
-import { wagmiAdapter } from "@reown/adapters-wagmi";
+import { wagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
