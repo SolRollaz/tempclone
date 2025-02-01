@@ -23,8 +23,8 @@ class QR_Code_Auth {
 
         this.core = this.initializeCore();
         this.walletKit = null;
-        this.adapter = this.initializeAdapter();
-        this.modal = this.initializeModal();
+        // this.adapter = this.initializeAdapter();
+        // this.modal = this.initializeModal();
     }
 
     ensureQRCodeDirectory() {
@@ -102,7 +102,8 @@ class QR_Code_Auth {
             const publicUrl = `${this.systemConfig.walletConnect.qrCodeBaseUrl}/${path.basename(filePath)}`;
 
             console.log("Generating pairing details...");
-            const uri = this.walletKit.core.pairing.getPairingUri();
+            const paringData = await this.walletKit.core.pairing.create(); // Ensure create() is awaited
+            const uri = paringData.uri;
 
             console.log(`[Session: ${sessionId}] QR Code Data (URI): ${uri}`);
             console.log("Pairing with WalletKit...");

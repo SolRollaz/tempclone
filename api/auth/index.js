@@ -24,6 +24,16 @@ app.post('/api/auth', (req, res) => {
     authAPI.handleRequest(req, res); // Delegate to the AuthEndpoint handler
 });
 
+// Generate QR Code API
+app.get("/api/generate-qr", async (req, res) => {
+    authAPI.handleQRCode(req, res);
+});
+
+// Verify Signature API
+app.post("/api/verify-signature", async (req, res) => {
+    authAPI.handleVerifySignature(req, res);
+});
+
 // Define the port for the API
 const PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
 

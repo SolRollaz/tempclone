@@ -1,5 +1,6 @@
 import express from "express";
 import QR_Code_Auth from "../../HVM/QRCode_Auth.js";
+import QRCodeAuth from "../../HVM/QRCode_Auth_new.js";
 import SystemConfig from "../../systemConfig.js";
 import { MongoClient } from "mongodb";
 import fs from "fs";
@@ -20,6 +21,7 @@ class AuthEndpoint {
         this.dbName = dbName;
         this.client = new MongoClient(this.mongoUri, { useUnifiedTopology: true });
 
+        this.qrCodeAuth_NEW = new QRCodeAuth(this.client, this.dbName, this.systemConfig);
         this.qrCodeAuth = new QR_Code_Auth(this.client, this.dbName, this.systemConfig);
     }
 
@@ -34,7 +36,7 @@ class AuthEndpoint {
         }
 
         try {
-            await this.client.connect();
+            // await this.client.connect();
             return await this.handleQRCodeRequest(res);
         } catch (error) {
             console.error("Error handling request:", error.message);
@@ -77,6 +79,26 @@ class AuthEndpoint {
         } catch (error) {
             console.error("Error generating QR code:", error.message);
             return res.status(500).send({ status: "failure", message: "Failed to generate QR code." });
+        }
+    }
+
+    async handleQRCode(req, res) {
+        try {
+            // const result = await this.qrCodeAuth.generateQRCode();
+            const result1 = await this.qrCodeAuth_NEW.generateAuthenticationQRCode();
+            res.json(result1);
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }   
+    }
+
+    async handleVerifySignature(req, res) {
+        const { sessionId, signature, message } = req.body;
+        try {
+            const result = await this.qrCodeAuth_NEW.verifySignature(sessionId, signature, message);
+            res.json(result);
+        } catch (error) {
+            res.status(400).json({ message: error.message });
         }
     }
 }
