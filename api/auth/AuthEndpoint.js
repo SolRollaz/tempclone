@@ -36,7 +36,7 @@ class AuthEndpoint {
         }
 
         try {
-            // await this.client.connect();
+            await this.client.connect();
             return await this.handleQRCodeRequest(res);
         } catch (error) {
             console.error("Error handling request:", error.message);
