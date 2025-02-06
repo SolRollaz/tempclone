@@ -119,23 +119,6 @@ class QR_Code_Auth {
             console.log("Pairing with WalletKit...");
             await this.walletKit.pair({ uri });
 
-            // Listen for session updates
-            this.walletKit.on("session_update", (error, payload) => {
-                if (error) {
-                    console.error("Session update error:", error);
-                    return;
-                }
-                console.log("Session updated:", payload);
-            });
-
-            // Listen for session disconnect
-            this.walletKit.on("session_delete", (error, payload) => {
-                if (error) {
-                    console.error("Session delete error:", error);
-                    return;
-                }
-                console.log("Session deleted:", payload);
-            });
             // WalletConnection ....
             // Check if already connected
             // if (!connector.connected) {
