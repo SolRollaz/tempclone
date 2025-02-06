@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import express from 'express'; // Use `import` for consistency in ES modules
 import AuthEndpoint from './AuthEndpoint.js'; // Correct path to AuthEndpoint
+import cors from 'cors'
 
 // Specify the path to .env explicitly
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
