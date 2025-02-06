@@ -36,7 +36,11 @@ const authAPI = new AuthEndpoint();
 
 // Define the API route
 app.post('/api/auth', (req, res) => {
-    authAPI.handleRequest(req, res); // Delegate to the AuthEndpoint handler
+    try{
+        authAPI.handleRequest(req, res); // Delegate to the AuthEndpoint handler
+    }catch(e) {
+        console.log(e);
+    }
 });
 
 app.get("/.well-known/walletconnect.txt", (req, res) => {
