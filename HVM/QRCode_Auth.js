@@ -2,11 +2,16 @@ import { Core } from "@walletconnect/core";
 import { createAppKit } from "@reown/appkit";
 import { WalletKit } from "@reown/walletkit";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+// import { WalletConnect } from "@walletconnect/client";
 import qrCode from "qrcode";
 import fs from "fs";
 import path from "path";
 import systemConfig from "../systemConfig.js";
 
+// const connector = new WalletConnect({
+//     bridge: 'https://bridge.walletconnect.org', // Required
+//     qrcodeModal: null, // Disable the default QR code modal
+// });
 
 class QR_Code_Auth {
     constructor(client, dbName, systemConfig) {
@@ -37,6 +42,7 @@ class QR_Code_Auth {
     initializeCore() {
         console.log("Initializing Core...");
         const core = new Core({
+            relayUrl: this.systemConfig.walletConnect.relayUrl, // Use systemConfig for relay URL
             projectId: this.systemConfig.walletConnect.projectId, // Use systemConfig for project ID
         });
 
@@ -102,12 +108,44 @@ class QR_Code_Auth {
             const publicUrl = `${this.systemConfig.walletConnect.qrCodeBaseUrl}/${path.basename(filePath)}`;
 
             console.log("Generating pairing details...");
-            const paringData = await this.walletKit.core.pairing.create(); // Ensure create() is awaited
+            const paringData = await this.walletKit.core.pairing.create({
+                methods: [
+                    "wc_sessionAuthenticate",
+                ]
+            }); // Ensure create() is awaited
             const uri = paringData.uri;
 
             console.log(`[Session: ${sessionId}] QR Code Data (URI): ${uri}`);
             console.log("Pairing with WalletKit...");
             await this.walletKit.pair({ uri });
+
+            // Listen for session updates
+            this.walletKit.on("session_update", (error, payload) => {
+                if (error) {
+                    console.error("Session update error:", error);
+                    return;
+                }
+                console.log("Session updated:", payload);
+            });
+
+            // Listen for session disconnect
+            this.walletKit.on("session_delete", (error, payload) => {
+                if (error) {
+                    console.error("Session delete error:", error);
+                    return;
+                }
+                console.log("Session deleted:", payload);
+            });
+            // WalletConnection ....
+            // Check if already connected
+            // if (!connector.connected) {
+            //     // Create a new session (triggers QR code generation)
+            //     connector.createSession();
+            // }
+            // // Get the URI for the QR code
+            // const wcUri = connector.uri;
+            
+            // console.log(`[Session: ${sessionId}] QR Code Data (URI): ${wcUri}`);
 
             console.log("Generating QR Code...");
             await qrCode.toFile(filePath, uri, {
