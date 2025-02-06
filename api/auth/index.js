@@ -13,6 +13,18 @@ console.log("Current Working Directory:", process.cwd());
 // Create an Express app
 const app = express();
 
+
+// Enable CORS for requests from hyprmtrx.com
+app.use(
+    cors({
+        origin: "https://hyprmtrx.com", // Allow only this domain
+        methods: "GET,POST,PUT,DELETE,OPTIONS",
+        allowedHeaders: "Content-Type,Authorization",
+        credentials: true, // If using cookies/sessions
+    })
+);
+
+
 // Middleware to parse JSON requests
 app.use(express.json());
 
