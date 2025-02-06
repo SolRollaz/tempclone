@@ -29,6 +29,8 @@ app.use(
 // Middleware to parse JSON requests
 app.use(express.json());
 
+app.use(express.static("public"));
+
 // Create an instance of the AuthEndpoint class
 const authAPI = new AuthEndpoint();
 
@@ -36,6 +38,10 @@ const authAPI = new AuthEndpoint();
 app.post('/api/auth', (req, res) => {
     authAPI.handleRequest(req, res); // Delegate to the AuthEndpoint handler
 });
+
+app.get("/.well-known/walletconnect.txt", (req, res) => {
+    res.sendFile(path.resolve(process.cwd(), "public", "walletconnect.txt"));
+  });
 
 // Generate QR Code API
 app.get("/api/generate-qr", async (req, res) => {

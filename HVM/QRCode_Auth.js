@@ -13,6 +13,8 @@ import systemConfig from "../systemConfig.js";
 //     qrcodeModal: null, // Disable the default QR code modal
 // });
 
+// Create WalletConnector
+
 class QR_Code_Auth {
     constructor(client, dbName, systemConfig) {
         if (!client || !dbName || !systemConfig) {
@@ -28,6 +30,7 @@ class QR_Code_Auth {
 
         this.core = this.initializeCore();
         this.walletKit = null;
+        this.signClient = null;
         // this.adapter = this.initializeAdapter();
         // this.modal = this.initializeModal();
     }
@@ -95,67 +98,45 @@ class QR_Code_Auth {
         this.walletKit.on("*", (eventName, payload) => {
             console.log(`Event: ${eventName}`, payload);
         });
+        
+        // Ensure pairing is initialized
+        await this.walletKit.core.pairing.init();
     }
 
     async generateAuthenticationQRCode() {
         try {
             console.log("Starting QR code generation process...");
             await this.initializeWalletKit();
-
+    
             const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             const sessionId = `session_${uniqueId}`;
             const filePath = path.join(this.qrCodeDir, `${sessionId}_auth_qrcode.png`);
             const publicUrl = `${this.systemConfig.walletConnect.qrCodeBaseUrl}/${path.basename(filePath)}`;
-
+    
             console.log("Generating pairing details...");
-            const paringData = await this.walletKit.core.pairing.create({
-                methods: [
-                    "wc_sessionAuthenticate",
-                ]
-            }); // Ensure create() is awaited
-            const uri = paringData.uri;
-
-            console.log(`[Session: ${sessionId}] QR Code Data (URI): ${uri}`);
-            console.log("Pairing with WalletKit...");
-            await this.walletKit.pair({ uri });
-
-            this.walletKit.on("session_update", (error, payload) => {
-                if (error) {
-                    console.error("Session update error:", error);
-                    return;
-                }
-                console.log("Session updated:", payload);
-                console.log("Type of payload:", typeof payload);
-                console.log("Structure of payload:", Object.keys(payload));
+            const { uri, topic } = await this.walletKit.core.pairing.create({
+                methods: ["wc_authRequest"]
             });
-            
-            // Listen for session updates
-            this.walletKit.on("session_delete", (error, payload) => {
-                if (error) {
-                    console.error("Session delete error:", error);
-                    return;
-                }
-                console.log("Session deleted:", payload);
-                console.log("Type of payload:", typeof payload);
-                console.log("Structure of payload:", Object.keys(payload));
+    
+            console.log(`[Session: ${sessionId}] QR Code Data (URI): ${uri}, Topic: ${topic}`);
+    
+            // Ensure pairing happens correctly
+            await this.walletKit.core.pairing.pair({ uri });
+    
+            console.log("Waiting for session approval...");
+            this.walletKit.on("session_proposal", (payload) => {
+                console.log("Session Proposal Received:", payload);
             });
-
-            // WalletConnection ....
-            // Check if already connected
-            // if (!connector.connected) {
-            //     // Create a new session (triggers QR code generation)
-            //     connector.createSession();
-            // }
-            // // Get the URI for the QR code
-            // const wcUri = connector.uri;
-            
-            // console.log(`[Session: ${sessionId}] QR Code Data (URI): ${wcUri}`);
-
+    
+            this.walletKit.on("session_update", (payload) => {
+                console.log("Session Updated:", payload);
+            });
+    
             console.log("Generating QR Code...");
             await qrCode.toFile(filePath, uri, {
                 color: { dark: "#000000", light: "#ffffff" },
             });
-
+    
             console.log(`[Session: ${sessionId}] QR code generated and saved: ${filePath}`);
             return {
                 status: "success",
@@ -170,6 +151,8 @@ class QR_Code_Auth {
             return { status: "failure", message: "Failed to generate QR code." };
         }
     }
+    
+    
 
     async signMessage(message) {
         try {
